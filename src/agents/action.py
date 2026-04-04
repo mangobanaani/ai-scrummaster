@@ -27,7 +27,6 @@ def build_action_agent(llm: LLM, tools: list) -> Agent:
 def _format_comment(
     findings: list[Finding],
     dedup: DedupResult | None,
-    event_type: str,
 ) -> str:
     lines = ["## Agentic Scrum Master Review\n"]
 
@@ -62,9 +61,10 @@ def build_action_task(
     pr_number: int | None,
     repo: str,
     dedup_confidence_threshold: float = 0.85,
+    pr_author: str | None = None,
 ) -> Task:
     sf = SecurityFindings(findings=findings)
-    comment_body = _format_comment(findings, dedup, triage.route.value)
+    comment_body = _format_comment(findings, dedup)
 
     cve_ticket_instructions = ""
     cve_step = 4
@@ -72,7 +72,7 @@ def build_action_task(
         cve_step = 5  # check run takes step 4
     for cve in sf.critical_cves:
         pr_ref = f" — blocks PR #{pr_number}" if pr_number else ""
-        assignee = triage.pr_author or "repo maintainer"
+        assignee = pr_author or triage.pr_author or "repo maintainer"
         cve_ticket_instructions += (
             f"\n{cve_step}. Call create_issue in '{repo}' with:\n"
             f"   - title: '[SECURITY] {cve.cve_id or 'Critical CVE'} in {cve.package}{pr_ref}'\n"

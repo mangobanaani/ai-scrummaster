@@ -11,7 +11,7 @@ from src.schemas.findings import Finding, SecurityFindings
 from src.schemas.story import DecomposedStories
 from src.agents.story_decomposer import build_story_decomposer_agent, build_story_decomposer_task
 import dataclasses
-from src.tools.github_api import create_issue, fetch_open_issue_titles, link_sub_issue, fetch_pr_diff, fetch_open_issues_with_dates, fetch_recent_activity, fetch_changed_dep_files
+from src.tools.github_api import create_issue, fetch_open_issue_titles, link_sub_issue, fetch_pr_diff, fetch_open_issues_with_dates, fetch_recent_activity, fetch_changed_dep_files, fetch_repo_dep_files
 from src.checks.staleness import find_stale_issues, check_wip_limits
 from src.agents.maintenance import build_maintenance_agent, build_maintenance_task
 from src.agents.standup import build_standup_agent, build_standup_task
@@ -115,10 +115,10 @@ def _parse_dedup(output: str) -> DedupResult:
 def _parse_findings(output: str) -> list[Finding]:
     try:
         raw = json.loads(_extract_json(output))
-        if isinstance(raw, list):
-            return [Finding.model_validate(f) for f in raw]
+        items = raw if isinstance(raw, list) else raw.get("findings", []) if isinstance(raw, dict) else []
+        return [Finding.model_validate(f) for f in items]
     except Exception:
-        pass
+        logger.warning("Findings parse failed: %s", output[:200])
     return []
 
 
@@ -194,7 +194,7 @@ def _topo_sort(tickets: list) -> list[int]:
 
 
 _STOP_WORDS = {"a", "an", "the", "of", "to", "in", "for", "and", "or", "with", "is", "be", "on"}
-_DEDUP_THRESHOLD = 0.5
+_DEDUP_THRESHOLD = 0.7
 
 
 def _title_is_duplicate(title: str, existing: list[str]) -> bool:
@@ -220,9 +220,11 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
     policy = _get_policy()
 
     # --- Triage ---
-    # Skip LLM triage for story events — route and repo are already known from the request.
+    # Skip LLM triage for story and scan events — route and repo are already known.
     if raw_event.get("event_type") == "story":
         triage = TriageResult(route=RouteType.story, repo=payload.repo, entity_id=None)
+    elif raw_event.get("event_type") == "scan":
+        triage = TriageResult(route=RouteType.scan, repo=payload.repo, entity_id=None)
     else:
         with mcp_tools_for("triage") as triage_tools:
             triage_agent = build_triage_agent(llm)
@@ -254,6 +256,12 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
             )
             raw_event["changed_files"] = dep_files_fetched
 
+    # --- Fetch repo dep files for scan events ---
+    if triage.route == RouteType.scan:
+        raw_event["changed_files"] = await fetch_repo_dep_files(
+            settings.github_token, triage.repo
+        )
+
     # --- Pre-scan (deterministic, no LLM) ---
     secret_findings = scan_for_secrets(payload.diff) if payload.diff else []
     owasp_categories = classify_owasp(f"{payload.title} {payload.body}")
@@ -264,6 +272,16 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
         packages = extract_packages(content, filename)
         if packages:
             cve_findings.extend(await lookup_cves_batch(packages))
+
+    # --- Scan events return findings directly (no entity to comment on) ---
+    if triage.route == RouteType.scan:
+        all_findings = secret_findings + cve_findings
+        return {
+            "status": "scan_complete",
+            "repo": triage.repo,
+            "findings": len(all_findings),
+            "cves": len(cve_findings),
+        }
 
     policy_findings: list[Finding] = []
     if triage.route.value == "pr":
@@ -398,6 +416,7 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
             pr_number=pr_number,
             repo=triage.repo,
             dedup_confidence_threshold=policy.rules.dedup_confidence_threshold,
+            pr_author=payload.pr_author,
         )
         crew = Crew(agents=[action_agent], tasks=[action_task], process=Process.sequential)
         action_output = await crew.kickoff_async()

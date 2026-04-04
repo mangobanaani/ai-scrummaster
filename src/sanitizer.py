@@ -119,6 +119,6 @@ def sanitize_payload(raw: dict) -> SanitizedPayload:
         entity_id=entity_id,
         action=action,
         pr_author=pr_author,
-        event_type=raw.get("event_type", ""),
+        event_type=sanitize_field(raw.get("event_type", ""), "title"),
         diff=diff,
     )

@@ -160,6 +160,28 @@ async def fetch_changed_dep_files(
     return result
 
 
+async def fetch_repo_dep_files(token: str, repo: str) -> dict[str, str]:
+    """Fetch known dependency manifests from the repo's default branch."""
+    result: dict[str, str] = {}
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for filepath in sorted(_DEP_FILE_PATTERNS):
+            url = f"{_GITHUB_API}/repos/{repo}/contents/{filepath}"
+            try:
+                resp = await client.get(
+                    url,
+                    headers={
+                        **_HEADERS,
+                        "Authorization": f"Bearer {token}",
+                        "Accept": "application/vnd.github.raw+json",
+                    },
+                )
+                if resp.status_code == 200:
+                    result[filepath] = resp.text
+            except httpx.HTTPError:
+                pass
+    return result
+
+
 async def fetch_recent_activity(token: str, repo: str, since_hours: int = 24) -> dict:
     """Fetch recent issues and PRs for standup summaries."""
     from datetime import datetime, timezone, timedelta
@@ -187,7 +209,11 @@ async def fetch_recent_activity(token: str, repo: str, since_hours: int = 24) ->
                 continue
             entry = {"number": item["number"], "title": item["title"], "author": item["user"]["login"]}
             if item["state"] == "closed":
-                activity["closed_issues"].append(entry)
+                closed_at = item.get("closed_at")
+                if closed_at:
+                    closed_dt = datetime.fromisoformat(closed_at.replace("Z", "+00:00"))
+                    if closed_dt >= since_dt_issues:
+                        activity["closed_issues"].append(entry)
             else:
                 created = datetime.fromisoformat(item["created_at"].replace("Z", "+00:00"))
                 if created >= since_dt_issues:
