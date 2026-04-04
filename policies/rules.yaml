@@ -5,6 +5,8 @@ wip_limits:
 
 stale_days: 7
 
+auto_close_days: 30
+
 branch_naming:
   pattern: "^(feature|fix|chore|security)/"
   required: true

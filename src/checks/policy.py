@@ -19,6 +19,8 @@ class CveThresholds(BaseModel):
 class PolicyRules(BaseModel):
     wip_limits: dict[str, int] = {"feature": 5, "bug": 10, "security": 3}
     stale_days: int = 7
+    auto_close_days: int = 30
+    stale_nudge_message: str = ""
     branch_naming: BranchNamingRule = BranchNamingRule()
     pr_requires_linked_issue: bool = True
     protected_branches: list[str] = ["main", "master"]
