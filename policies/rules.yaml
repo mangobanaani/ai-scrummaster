@@ -1,0 +1,25 @@
+wip_limits:
+  feature: 5
+  bug: 10
+  security: 3
+
+stale_days: 7
+
+branch_naming:
+  pattern: "^(feature|fix|chore|security)/"
+  required: true
+
+pr_requires_linked_issue: true
+
+protected_branches:
+  - main
+  - master
+
+cve_thresholds:
+  auto_ticket_severity:
+    - CRITICAL
+    - HIGH
+  block_merge_severity:
+    - CRITICAL
+
+dedup_confidence_threshold: 0.85
