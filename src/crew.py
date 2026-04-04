@@ -11,7 +11,9 @@ from src.schemas.findings import Finding, SecurityFindings
 from src.schemas.story import DecomposedStories
 from src.agents.story_decomposer import build_story_decomposer_agent, build_story_decomposer_task
 import dataclasses
-from src.tools.github_api import create_issue, fetch_open_issue_titles, link_sub_issue, fetch_pr_diff
+from src.tools.github_api import create_issue, fetch_open_issue_titles, link_sub_issue, fetch_pr_diff, fetch_open_issues_with_dates
+from src.checks.staleness import find_stale_issues, check_wip_limits
+from src.agents.maintenance import build_maintenance_agent, build_maintenance_task
 from src.checks.secrets import scan_for_secrets
 from src.checks.dependencies import extract_packages, lookup_cves_batch
 from src.checks.owasp import classify_owasp
@@ -390,4 +392,50 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
         "findings": len(all_findings),
         "is_duplicate": dedup.is_duplicate,
         "action_summary": str(action_output)[:500],
+    }
+
+
+async def run_maintenance(repo: str) -> dict:
+    """Run stale issue detection and WIP limit enforcement."""
+    llm = _make_llm()
+    policy = _get_policy()
+
+    issues = await fetch_open_issues_with_dates(settings.github_token, repo)
+
+    stale = find_stale_issues(issues, policy.rules.stale_days)
+    wip_violations = check_wip_limits(issues, policy.rules.wip_limits)
+
+    stale_nudge = []
+    stale_close = []
+    for issue in stale:
+        from datetime import datetime, timezone
+        updated = datetime.fromisoformat(issue["updated_at"])
+        days = (datetime.now(timezone.utc) - updated).days
+        entry = {**issue, "days_stale": days}
+        if days >= policy.rules.auto_close_days:
+            stale_close.append(entry)
+        else:
+            stale_nudge.append(entry)
+
+    if not stale_nudge and not stale_close and not wip_violations:
+        return {"status": "clean", "repo": repo}
+
+    with mcp_tools_for("action") as tools:
+        agent = build_maintenance_agent(llm, tools)
+        task = build_maintenance_task(
+            agent=agent,
+            stale_issues=stale_nudge,
+            auto_close_issues=stale_close,
+            wip_violations=wip_violations,
+            repo=repo,
+        )
+        crew = Crew(agents=[agent], tasks=[task], process=Process.sequential)
+        await crew.kickoff_async()
+
+    return {
+        "status": "maintenance_complete",
+        "repo": repo,
+        "stale_nudged": len(stale_nudge),
+        "stale_closed": len(stale_close),
+        "wip_violations": len(wip_violations),
     }

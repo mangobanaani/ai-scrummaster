@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from fastapi.security import APIKeyHeader
 from src.config import settings
 from src.sanitizer import sanitize_payload, sanitize_field, validate_repo, SanitizedPayload
-from src.crew import run_crew_for_event
+from src.crew import run_crew_for_event, run_maintenance
 from src.schemas.story import StoryInput
 
 logger = logging.getLogger(__name__)
@@ -100,4 +100,32 @@ async def scan_repo(
     payload = SanitizedPayload(repo=repo, title="", body="", event_type="scan")
     raw_event = {"event_type": "scan", "repo": repo}
     background_tasks.add_task(_dispatch, payload, raw_event)
+    return Response(status_code=202)
+
+
+@router.post("/maintenance")
+async def maintenance(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    _: None = Depends(_require_api_key),
+):
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=400, detail="Expected JSON object")
+    try:
+        repo = validate_repo(data.get("repo", ""))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    async def _run():
+        try:
+            result = await run_maintenance(repo)
+            logger.info("Maintenance completed: %s", result)
+        except Exception:
+            logger.exception("Maintenance failed for repo %s", repo)
+
+    background_tasks.add_task(_run)
     return Response(status_code=202)

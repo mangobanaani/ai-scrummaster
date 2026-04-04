@@ -319,3 +319,24 @@ async def test_webhook_pr_labeled_is_skipped():
             )
     assert resp.status_code == 200
     mock_crew.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_maintenance_endpoint():
+    with patch("src.webhook_router.run_maintenance", new_callable=AsyncMock) as mock_maint:
+        mock_maint.return_value = {"status": "clean"}
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/maintenance",
+                json={"repo": "owner/repo"},
+                headers={"X-Api-Key": settings.api_key},
+            )
+    assert resp.status_code == 202
+    mock_maint.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_maintenance_missing_api_key():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post("/maintenance", json={"repo": "owner/repo"})
+    assert resp.status_code == 403
