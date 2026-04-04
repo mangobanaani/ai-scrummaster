@@ -17,7 +17,7 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     entrypoint: >
-      sh -c "ollama serve & sleep 5 && ollama pull ${OLLAMA_MODEL:-qwen2.5:27b} && wait"
+      sh -c "ollama serve & until curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; do sleep 1; done && ollama pull ${OLLAMA_MODEL:-qwen2.5:27b} && wait"
 
   github-mcp:
     image: ghcr.io/github/github-mcp-server:latest

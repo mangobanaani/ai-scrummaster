@@ -33,7 +33,7 @@ def mcp_tools_for(agent_name: str):
     token = settings.github_token
     server_config = {
         "url": settings.mcp_server_url,
-        "transport": "streamable-http",
+        "transport": "sse",
         "headers": {"Authorization": f"Bearer {token}"},
     }
 
