@@ -74,3 +74,39 @@ async def test_link_sub_issue_raises_on_http_error():
         ).mock(return_value=httpx.Response(404, json={"message": "Not Found"}))
         with pytest.raises(httpx.HTTPStatusError):
             await link_sub_issue(TOKEN, REPO, parent_number=1, child_id=9001)
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_fetch_pr_diff_returns_diff():
+    diff_text = "+added line\n-removed line\n context line"
+    respx.get("https://api.github.com/repos/owner/repo/pulls/5").mock(
+        return_value=httpx.Response(200, text=diff_text)
+    )
+    from src.tools.github_api import fetch_pr_diff
+    result = await fetch_pr_diff("tok", "owner/repo", 5)
+    assert "+added line" in result
+    assert "-removed line" in result
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_fetch_pr_diff_truncates_at_8000():
+    diff_text = "x" * 10000
+    respx.get("https://api.github.com/repos/owner/repo/pulls/1").mock(
+        return_value=httpx.Response(200, text=diff_text)
+    )
+    from src.tools.github_api import fetch_pr_diff
+    result = await fetch_pr_diff("tok", "owner/repo", 1)
+    assert len(result) == 8000
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_fetch_pr_diff_returns_empty_on_error():
+    respx.get("https://api.github.com/repos/owner/repo/pulls/1").mock(
+        return_value=httpx.Response(404)
+    )
+    from src.tools.github_api import fetch_pr_diff
+    result = await fetch_pr_diff("tok", "owner/repo", 1)
+    assert result == ""
