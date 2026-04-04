@@ -1,0 +1,27 @@
+name: Daily Maintenance
+
+on:
+  schedule:
+    - cron: '0 9 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  standup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post daily standup
+        run: |
+          curl -sf -X POST "${{ secrets.APP_URL }}/standup" \
+            -H "Content-Type: application/json" \
+            -H "X-Api-Key: ${{ secrets.API_KEY }}" \
+            -d "{\"repo\": \"${{ github.repository }}\"}"
+
+  maintenance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run stale issue maintenance
+        run: |
+          curl -sf -X POST "${{ secrets.APP_URL }}/maintenance" \
+            -H "Content-Type: application/json" \
+            -H "X-Api-Key: ${{ secrets.API_KEY }}" \
+            -d "{\"repo\": \"${{ github.repository }}\"}"
