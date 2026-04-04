@@ -1,7 +1,8 @@
 import pytest
 import respx
 import httpx
-from src.checks.dependencies import extract_packages, lookup_cves_batch
+from src.checks.dependencies import extract_packages, lookup_cves_batch, _parse_severity
+from src.schemas.findings import Severity
 
 
 def test_extract_requirements_txt():
@@ -59,6 +60,45 @@ async def test_lookup_cves_batch_returns_findings():
     assert len(findings) == 1
     assert findings[0].cve_id == "CVE-2024-1234"
     assert findings[0].package == "requests"
+
+
+def test_parse_severity_cvss_vector_critical():
+    """CVSS vector with network access, no privs, high impact -> critical."""
+    vuln = {"severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"}]}
+    assert _parse_severity(vuln) == Severity.critical
+
+
+def test_parse_severity_cvss_vector_high():
+    """CVSS vector with network access, no privs, but not all high impact -> high."""
+    vuln = {"severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N"}]}
+    assert _parse_severity(vuln) == Severity.high
+
+
+def test_parse_severity_cvss_vector_medium():
+    """CVSS vector with network but requires privileges -> medium."""
+    vuln = {"severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N"}]}
+    assert _parse_severity(vuln) == Severity.medium
+
+
+def test_parse_severity_cvss_vector_low():
+    """CVSS vector requiring local access -> low."""
+    vuln = {"severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N"}]}
+    assert _parse_severity(vuln) == Severity.low
+
+
+def test_parse_severity_numeric_score():
+    """Plain numeric score string should still work."""
+    vuln = {"severity": [{"type": "CVSS_V3", "score": "9.8"}]}
+    assert _parse_severity(vuln) == Severity.critical
+
+
+def test_parse_severity_database_specific_takes_precedence():
+    """database_specific.severity should take precedence over CVSS vector."""
+    vuln = {
+        "database_specific": {"severity": "LOW"},
+        "severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"}],
+    }
+    assert _parse_severity(vuln) == Severity.low
 
 
 @pytest.mark.asyncio

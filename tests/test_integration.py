@@ -361,3 +361,36 @@ async def test_standup_missing_api_key():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/standup", json={"repo": "owner/repo"})
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_standup_rejects_negative_since_hours():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            "/standup",
+            json={"repo": "owner/repo", "since_hours": -5},
+            headers={"X-Api-Key": settings.api_key},
+        )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_standup_rejects_excessive_since_hours():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            "/standup",
+            json={"repo": "owner/repo", "since_hours": 9999},
+            headers={"X-Api-Key": settings.api_key},
+        )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_standup_rejects_non_integer_since_hours():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            "/standup",
+            json={"repo": "owner/repo", "since_hours": "abc"},
+            headers={"X-Api-Key": settings.api_key},
+        )
+    assert resp.status_code == 422

@@ -43,5 +43,5 @@ def test_whitelist_completeness():
 
 def test_action_has_required_tools():
     action_tools = AGENT_TOOL_WHITELIST["action"]
-    for required in ["add_issue_comment", "issue_write", "list_issues"]:
+    for required in ["add_issue_comment", "issue_write", "list_issues", "create_check_run", "create_issue"]:
         assert required in action_tools

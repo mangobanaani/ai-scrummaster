@@ -59,3 +59,63 @@ def test_action_task_no_findings_adds_reviewed_label():
     task = build_action_task(agent=agent, triage=triage, findings=[],
                               dedup=None, pr_number=5, repo="owner/repo")
     assert "reviewed" in task.description
+
+
+def test_action_task_pr_includes_check_run():
+    """PR events should include a create_check_run instruction."""
+    agent = build_action_agent(_FAKE_LLM, tools=[])
+    triage = TriageResult(route=RouteType.pr, repo="owner/repo", entity_id=5)
+    task = build_action_task(agent=agent, triage=triage, findings=[],
+                              dedup=None, pr_number=5, repo="owner/repo")
+    assert "create_check_run" in task.description
+    assert "agentic-scrum-master" in task.description
+    assert "success" in task.description
+
+
+def test_action_task_pr_critical_findings_fail_check_run():
+    """PR with critical findings should create a failing check run."""
+    agent = build_action_agent(_FAKE_LLM, tools=[])
+    triage = TriageResult(route=RouteType.pr, repo="owner/repo", entity_id=5)
+    cve = Finding(type=FindingType.cve, severity=Severity.critical,
+                  description="CVE-2024-1234", recommendation="Upgrade",
+                  cve_id="CVE-2024-1234", package="requests")
+    task = build_action_task(agent=agent, triage=triage, findings=[cve],
+                              dedup=None, pr_number=5, repo="owner/repo")
+    assert "create_check_run" in task.description
+    assert "failure" in task.description
+
+
+def test_action_task_issue_no_check_run():
+    """Issue events should NOT include a check run instruction."""
+    agent = build_action_agent(_FAKE_LLM, tools=[])
+    triage = TriageResult(route=RouteType.issue, repo="owner/repo", entity_id=5)
+    task = build_action_task(agent=agent, triage=triage, findings=[],
+                              dedup=None, pr_number=None, repo="owner/repo")
+    assert "create_check_run" not in task.description
+
+
+def test_action_task_cve_uses_create_issue():
+    """CVE ticket creation should use create_issue, not issue_write."""
+    agent = build_action_agent(_FAKE_LLM, tools=[])
+    triage = TriageResult(route=RouteType.pr, repo="owner/repo", entity_id=5, pr_author="dev1")
+    cve = Finding(type=FindingType.cve, severity=Severity.critical,
+                  description="CVE-2024-1234 in requests",
+                  recommendation="Upgrade", cve_id="CVE-2024-1234",
+                  package="requests", fixed_version="2.31.0")
+    task = build_action_task(agent=agent, triage=triage, findings=[cve],
+                              dedup=None, pr_number=5, repo="owner/repo")
+    assert "create_issue" in task.description
+
+
+def test_action_task_cve_no_pr_omits_pr_reference():
+    """CVE ticket for non-PR events should not contain #None."""
+    agent = build_action_agent(_FAKE_LLM, tools=[])
+    triage = TriageResult(route=RouteType.issue, repo="owner/repo", entity_id=5)
+    cve = Finding(type=FindingType.cve, severity=Severity.critical,
+                  description="CVE-2024-1234 in requests",
+                  recommendation="Upgrade", cve_id="CVE-2024-1234",
+                  package="requests")
+    task = build_action_task(agent=agent, triage=triage, findings=[cve],
+                              dedup=None, pr_number=None, repo="owner/repo")
+    assert "#None" not in task.description
+    assert "None" not in task.description.split("Assigned to:")[1].split("\n")[0] if "Assigned to:" in task.description else True

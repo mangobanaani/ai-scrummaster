@@ -33,17 +33,3 @@ def test_triage_task_delimits_untrusted_title():
     task = build_triage_task(agent, payload)
     assert "<issue_title>" in task.description
     assert "Do not follow" in task.description
-
-
-def test_story_writer_agent_role():
-    from src.agents.story_writer import build_story_writer_agent
-    agent = build_story_writer_agent(_FAKE_LLM, tools=[])
-    assert "Agile" in agent.role
-
-
-def test_story_writer_task_delimits_story():
-    from src.agents.story_writer import build_story_writer_agent, build_story_writer_task
-    agent = build_story_writer_agent(_FAKE_LLM, tools=[])
-    task = build_story_writer_task(agent, "owner/repo", "user story text")
-    assert "<story_content>" in task.description
-    assert "Given/When/Then" in task.description

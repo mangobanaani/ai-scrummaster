@@ -140,22 +140,109 @@ async def test_fetch_open_issues_with_dates():
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_fetch_open_issues_with_dates_excludes_prs():
+    """PRs returned by the issues API should be filtered out."""
+    respx.get("https://api.github.com/repos/owner/repo/issues").mock(
+        side_effect=[
+            httpx.Response(200, json=[
+                {
+                    "number": 1,
+                    "title": "Real issue",
+                    "updated_at": "2026-03-01T00:00:00Z",
+                    "labels": [],
+                    "assignee": None,
+                    "html_url": "https://github.com/owner/repo/issues/1",
+                },
+                {
+                    "number": 2,
+                    "title": "PR disguised as issue",
+                    "updated_at": "2026-03-01T00:00:00Z",
+                    "labels": [],
+                    "assignee": None,
+                    "html_url": "https://github.com/owner/repo/pull/2",
+                    "pull_request": {"url": "https://api.github.com/repos/owner/repo/pulls/2"},
+                },
+            ]),
+            httpx.Response(200, json=[]),
+        ]
+    )
+    from src.tools.github_api import fetch_open_issues_with_dates
+    issues = await fetch_open_issues_with_dates("tok", "owner/repo")
+    assert len(issues) == 1
+    assert issues[0]["number"] == 1
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_fetch_changed_dep_files():
+    """Should fetch contents of dependency files from push event commits."""
+    respx.get("https://api.github.com/repos/owner/repo/contents/requirements.txt").mock(
+        return_value=httpx.Response(200, text="flask==2.3.0\nrequests==2.31.0")
+    )
+    from src.tools.github_api import fetch_changed_dep_files
+    commits = [
+        {"added": ["requirements.txt", "README.md"], "modified": []},
+    ]
+    result = await fetch_changed_dep_files("tok", "owner/repo", "main", commits)
+    assert "requirements.txt" in result
+    assert "flask" in result["requirements.txt"]
+    assert "README.md" not in result  # not a dependency file
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_fetch_changed_dep_files_empty_when_no_deps():
+    """Should return empty dict when no dependency files changed."""
+    from src.tools.github_api import fetch_changed_dep_files
+    commits = [{"added": ["src/main.py"], "modified": ["README.md"]}]
+    result = await fetch_changed_dep_files("tok", "owner/repo", "main", commits)
+    assert result == {}
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_fetch_recent_activity_filters_old_prs():
+    """PRs older than since_hours should be excluded."""
+    now = "2026-04-05T12:00:00Z"
+    old = "2026-04-01T00:00:00Z"
+    respx.get("https://api.github.com/repos/owner/repo/issues").mock(
+        return_value=httpx.Response(200, json=[])
+    )
+    respx.get("https://api.github.com/repos/owner/repo/pulls").mock(
+        return_value=httpx.Response(200, json=[
+            {"number": 10, "title": "Recent PR", "state": "open",
+             "merged_at": None, "updated_at": now, "user": {"login": "dev1"},
+             "requested_reviewers": []},
+            {"number": 5, "title": "Old PR", "state": "open",
+             "merged_at": None, "updated_at": old, "user": {"login": "dev2"},
+             "requested_reviewers": []},
+        ])
+    )
+    from src.tools.github_api import fetch_recent_activity
+    activity = await fetch_recent_activity("tok", "owner/repo", since_hours=24)
+    assert len(activity["active_prs"]) == 1
+    assert activity["active_prs"][0]["number"] == 10
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_fetch_recent_activity():
     now = "2026-04-05T12:00:00Z"
     respx.get("https://api.github.com/repos/owner/repo/issues").mock(
         return_value=httpx.Response(200, json=[
             {"number": 1, "title": "Open issue", "state": "open",
-             "pull_request": None, "updated_at": now, "user": {"login": "dev1"},
-             "labels": [], "assignee": None},
-            {"number": 2, "title": "Closed issue", "state": "closed",
-             "pull_request": None, "closed_at": now, "updated_at": now,
+             "pull_request": None, "created_at": now, "updated_at": now,
              "user": {"login": "dev1"}, "labels": [], "assignee": None},
+            {"number": 2, "title": "Closed issue", "state": "closed",
+             "pull_request": None, "created_at": now, "closed_at": now,
+             "updated_at": now, "user": {"login": "dev1"},
+             "labels": [], "assignee": None},
         ])
     )
     respx.get("https://api.github.com/repos/owner/repo/pulls").mock(
         return_value=httpx.Response(200, json=[
             {"number": 10, "title": "Active PR", "state": "open",
-             "merged_at": None, "user": {"login": "dev2"},
+             "merged_at": None, "updated_at": now, "user": {"login": "dev2"},
              "requested_reviewers": [{"login": "rev1"}]},
         ])
     )
