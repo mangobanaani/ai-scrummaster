@@ -1,5 +1,5 @@
 from typing import Literal
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 class StoryInput(BaseModel):
@@ -14,33 +14,14 @@ class StructuredIssue(BaseModel):
     assignees: list[str] = []
 
 
-_VALID_SIZES = {"XS", "S", "M", "L", "XL"}
-_VALID_PRIORITIES = {"low", "medium", "high", "critical"}
-
-
 class TicketDraft(BaseModel):
     title: str
     type: Literal["epic", "story", "task"]
-    category: str = "general"
-    size: str = "M"
-    priority: str = "medium"
-    body: str = ""
+    category: str  # e.g. "data-model", "frontend", "backend", "infra"
+    size: Literal["XS", "S", "M", "L", "XL"]
+    priority: Literal["low", "medium", "high", "critical"]
+    body: str  # markdown with user story, AC (Given/When/Then), and DoD checkboxes
     depends_on: list[int] = Field(default_factory=list)  # 0-based indices into DecomposedStories.tickets
-
-    @field_validator("size", mode="before")
-    @classmethod
-    def coerce_size(cls, v: object) -> str:
-        return v if v in _VALID_SIZES else "M"
-
-    @field_validator("priority", mode="before")
-    @classmethod
-    def coerce_priority(cls, v: object) -> str:
-        return v if v in _VALID_PRIORITIES else "medium"
-
-    @field_validator("category", mode="before")
-    @classmethod
-    def coerce_category(cls, v: object) -> str:
-        return v if isinstance(v, str) and v.strip() else "general"
 
 
 class DecomposedStories(BaseModel):

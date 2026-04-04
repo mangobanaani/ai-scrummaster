@@ -38,12 +38,12 @@ def test_ticket_draft_rejects_invalid_type():
         )
 
 
-def test_ticket_draft_coerces_invalid_size_to_default():
-    t = TicketDraft(
-        title="X", type="story", category="x",
-        size="HUGE", priority="low", body="x"
-    )
-    assert t.size == "M"
+def test_ticket_draft_rejects_invalid_size():
+    with pytest.raises(ValidationError):
+        TicketDraft(
+            title="X", type="story", category="x",
+            size="HUGE", priority="low", body="x"
+        )
 
 
 def test_decomposed_stories_empty_default():
