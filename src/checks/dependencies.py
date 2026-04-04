@@ -52,7 +52,10 @@ def extract_packages(content: str, filename: str) -> list[dict]:
                 continue
             if re.match(r"^require\s", stripped) and "(" not in stripped:
                 # Single-line require: require github.com/foo/bar v1.2.3
-                parts = re.split(r"\s+", stripped, maxsplit=1)[1].strip().split()
+                split = re.split(r"\s+", stripped, maxsplit=1)
+                if len(split) < 2:
+                    continue
+                parts = split[1].strip().split()
                 if len(parts) == 2 and parts[1].startswith("v") and "/" in parts[0]:
                     results.append(
                         {"name": parts[0], "version": parts[1].lstrip("v"), "ecosystem": "Go"}
@@ -83,12 +86,37 @@ def _parse_severity(vuln: dict) -> Severity:
         if "LOW" in upper:
             return Severity.low
 
-    # Then try numeric scores from severity entries
+    # Then try CVSS scores from severity entries
     for s in vuln.get("severity", []):
         score_raw = s.get("score", "")
-        # Try parsing as a plain numeric score
+        # Try parsing as a plain numeric score first
         try:
             val = float(score_raw)
+        except (ValueError, TypeError):
+            val = None
+        # If not a plain number, try extracting base score from CVSS vector string
+        # OSV returns vectors like "CVSS:3.1/AV:N/AC:L/..." with no inline score,
+        # but some entries have a separate "base_score" field
+        if val is None:
+            try:
+                val = float(s.get("base_score", ""))
+            except (ValueError, TypeError):
+                pass
+        # Also check the "type" field — OSV uses CVSS_V3 type with vector in "score"
+        if val is None and score_raw.startswith("CVSS:"):
+            # Parse CVSS vector to estimate severity from attack complexity
+            upper = score_raw.upper()
+            # High impact indicators: network-accessible, no privileges, no user interaction
+            high_impact = all(x in upper for x in ["AV:N", "PR:N"])
+            high_scope = "S:C" in upper or "C:H" in upper or "I:H" in upper or "A:H" in upper
+            if high_impact and high_scope:
+                return Severity.critical
+            if high_impact:
+                return Severity.high
+            if "AV:N" in upper:
+                return Severity.medium
+            return Severity.low
+        if val is not None:
             if val >= 9.0:
                 return Severity.critical
             if val >= 7.0:
@@ -96,8 +124,6 @@ def _parse_severity(vuln: dict) -> Severity:
             if val >= 4.0:
                 return Severity.medium
             return Severity.low
-        except ValueError:
-            pass
     return Severity.high
 
 

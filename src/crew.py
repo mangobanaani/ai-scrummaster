@@ -11,7 +11,7 @@ from src.schemas.findings import Finding, SecurityFindings
 from src.schemas.story import DecomposedStories
 from src.agents.story_decomposer import build_story_decomposer_agent, build_story_decomposer_task
 import dataclasses
-from src.tools.github_api import create_issue, fetch_open_issue_titles, link_sub_issue, fetch_pr_diff, fetch_open_issues_with_dates, fetch_recent_activity
+from src.tools.github_api import create_issue, fetch_open_issue_titles, link_sub_issue, fetch_pr_diff, fetch_open_issues_with_dates, fetch_recent_activity, fetch_changed_dep_files
 from src.checks.staleness import find_stale_issues, check_wip_limits
 from src.agents.maintenance import build_maintenance_agent, build_maintenance_task
 from src.agents.standup import build_standup_agent, build_standup_task
@@ -36,6 +36,12 @@ def _get_policy() -> PolicyEngine:
         _policy_engine = PolicyEngine(settings.policies_path)
     return _policy_engine
 
+
+def _reset_policy_cache() -> None:
+    """Reset the cached PolicyEngine instance. Used by tests to ensure isolation."""
+    global _policy_engine
+    _policy_engine = None
+
 _JSON_FENCE = re.compile(r"```(?:json)?\s*([\s\S]*?)```", re.DOTALL)
 
 
@@ -51,10 +57,10 @@ def _find_balanced_json(output: str) -> str | None:
         escaped = False
         for j in range(i, len(output)):
             c = output[j]
-            if escaped:
+            if in_string and escaped:
                 escaped = False
                 continue
-            if c == "\\":
+            if in_string and c == "\\":
                 escaped = True
                 continue
             if c == '"':
@@ -239,6 +245,15 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
         if diff:
             payload = dataclasses.replace(payload, diff=sanitize_field(diff, "diff"))
 
+    # --- Fetch dependency files for push events ---
+    if raw_event.get("event_type") == "push" and raw_event.get("commits"):
+        ref = raw_event.get("ref", "").replace("refs/heads/", "")
+        if ref:
+            dep_files_fetched = await fetch_changed_dep_files(
+                settings.github_token, triage.repo, ref, raw_event["commits"]
+            )
+            raw_event["changed_files"] = dep_files_fetched
+
     # --- Pre-scan (deterministic, no LLM) ---
     secret_findings = scan_for_secrets(payload.diff) if payload.diff else []
     owasp_categories = classify_owasp(f"{payload.title} {payload.body}")
@@ -252,7 +267,7 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
 
     policy_findings: list[Finding] = []
     if triage.route.value == "pr":
-        branch = raw_event.get("head_branch", "")
+        branch = raw_event.get("pull_request", {}).get("head", {}).get("ref", "")
         if branch and not policy.check_branch_name(branch):
             from src.schemas.findings import FindingType, Severity
             policy_findings.append(Finding(
@@ -406,10 +421,10 @@ async def run_maintenance(repo: str) -> dict:
     stale = find_stale_issues(issues, policy.rules.stale_days)
     wip_violations = check_wip_limits(issues, policy.rules.wip_limits)
 
+    from datetime import datetime, timezone
     stale_nudge = []
     stale_close = []
     for issue in stale:
-        from datetime import datetime, timezone
         updated = datetime.fromisoformat(issue["updated_at"])
         days = (datetime.now(timezone.utc) - updated).days
         entry = {**issue, "days_stale": days}
@@ -429,6 +444,7 @@ async def run_maintenance(repo: str) -> dict:
             auto_close_issues=stale_close,
             wip_violations=wip_violations,
             repo=repo,
+            stale_nudge_message=policy.rules.stale_nudge_message,
         )
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential)
         await crew.kickoff_async()
