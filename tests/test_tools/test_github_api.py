@@ -110,3 +110,29 @@ async def test_fetch_pr_diff_returns_empty_on_error():
     from src.tools.github_api import fetch_pr_diff
     result = await fetch_pr_diff("tok", "owner/repo", 1)
     assert result == ""
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_fetch_open_issues_with_dates():
+    respx.get("https://api.github.com/repos/owner/repo/issues").mock(
+        side_effect=[
+            httpx.Response(200, json=[
+                {
+                    "number": 1,
+                    "title": "Issue 1",
+                    "updated_at": "2026-03-01T00:00:00Z",
+                    "labels": [{"name": "bug"}],
+                    "assignee": {"login": "dev1"},
+                    "html_url": "https://github.com/owner/repo/issues/1",
+                },
+            ]),
+            httpx.Response(200, json=[]),
+        ]
+    )
+    from src.tools.github_api import fetch_open_issues_with_dates
+    issues = await fetch_open_issues_with_dates("tok", "owner/repo")
+    assert len(issues) == 1
+    assert issues[0]["number"] == 1
+    assert issues[0]["updated_at"] == "2026-03-01T00:00:00Z"
+    assert issues[0]["labels"][0]["name"] == "bug"
