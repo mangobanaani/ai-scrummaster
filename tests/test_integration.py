@@ -263,3 +263,59 @@ async def test_story_decomposition_skips_duplicates():
     assert result["tickets_created"] == 0
     assert result["tickets_skipped"] == 2
     assert issues_route.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_webhook_pr_opened_fetches_diff():
+    payload = {
+        "action": "opened",
+        "pull_request": {
+            "number": 10,
+            "title": "Add feature",
+            "body": "PR body",
+            "user": {"login": "dev1"},
+        },
+        "repository": {"full_name": "owner/repo"},
+    }
+    body = json.dumps(payload).encode()
+    sig = _sign(body, settings.github_webhook_secret)
+
+    with patch("src.webhook_router.run_crew_for_event", new_callable=AsyncMock) as mock_crew:
+        mock_crew.return_value = {"status": "processed"}
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/webhook",
+                content=body,
+                headers={
+                    "X-GitHub-Event": "pull_request",
+                    "X-Hub-Signature-256": sig,
+                    "Content-Type": "application/json",
+                },
+            )
+    assert resp.status_code == 202
+    mock_crew.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_webhook_pr_labeled_is_skipped():
+    payload = {
+        "action": "labeled",
+        "pull_request": {"number": 10, "title": "X", "body": ""},
+        "repository": {"full_name": "owner/repo"},
+    }
+    body = json.dumps(payload).encode()
+    sig = _sign(body, settings.github_webhook_secret)
+
+    with patch("src.webhook_router.run_crew_for_event", new_callable=AsyncMock) as mock_crew:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/webhook",
+                content=body,
+                headers={
+                    "X-GitHub-Event": "pull_request",
+                    "X-Hub-Signature-256": sig,
+                    "Content-Type": "application/json",
+                },
+            )
+    assert resp.status_code == 200
+    mock_crew.assert_not_called()

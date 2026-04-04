@@ -10,7 +10,8 @@ from src.schemas.dedup import DedupResult
 from src.schemas.findings import Finding, SecurityFindings
 from src.schemas.story import DecomposedStories
 from src.agents.story_decomposer import build_story_decomposer_agent, build_story_decomposer_task
-from src.tools.github_api import create_issue, fetch_open_issue_titles, link_sub_issue
+import dataclasses
+from src.tools.github_api import create_issue, fetch_open_issue_titles, link_sub_issue, fetch_pr_diff
 from src.checks.secrets import scan_for_secrets
 from src.checks.dependencies import extract_packages, lookup_cves_batch
 from src.checks.owasp import classify_owasp
@@ -227,6 +228,13 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
             triage_output = await crew.kickoff_async()
         triage = _parse_triage(str(triage_output))
     logger.info("Triage result: %s", triage.model_dump())
+
+    # --- Fetch PR diff ---
+    if triage.route == RouteType.pr and triage.entity_id:
+        from src.sanitizer import sanitize_field
+        diff = await fetch_pr_diff(settings.github_token, triage.repo, triage.entity_id)
+        if diff:
+            payload = dataclasses.replace(payload, diff=sanitize_field(diff, "diff"))
 
     # --- Pre-scan (deterministic, no LLM) ---
     secret_findings = scan_for_secrets(payload.diff) if payload.diff else []

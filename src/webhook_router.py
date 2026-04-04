@@ -52,6 +52,10 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=400, detail="Invalid JSON body")
     raw["event_type"] = event_type
 
+    _PR_ACTIONS = {"opened", "synchronize", "reopened"}
+    if event_type == "pull_request" and raw.get("action") not in _PR_ACTIONS:
+        return Response(status_code=200)
+
     try:
         payload = sanitize_payload(raw)
     except ValueError as exc:
