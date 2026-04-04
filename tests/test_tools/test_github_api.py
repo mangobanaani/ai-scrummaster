@@ -136,3 +136,31 @@ async def test_fetch_open_issues_with_dates():
     assert issues[0]["number"] == 1
     assert issues[0]["updated_at"] == "2026-03-01T00:00:00Z"
     assert issues[0]["labels"][0]["name"] == "bug"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_fetch_recent_activity():
+    now = "2026-04-05T12:00:00Z"
+    respx.get("https://api.github.com/repos/owner/repo/issues").mock(
+        return_value=httpx.Response(200, json=[
+            {"number": 1, "title": "Open issue", "state": "open",
+             "pull_request": None, "updated_at": now, "user": {"login": "dev1"},
+             "labels": [], "assignee": None},
+            {"number": 2, "title": "Closed issue", "state": "closed",
+             "pull_request": None, "closed_at": now, "updated_at": now,
+             "user": {"login": "dev1"}, "labels": [], "assignee": None},
+        ])
+    )
+    respx.get("https://api.github.com/repos/owner/repo/pulls").mock(
+        return_value=httpx.Response(200, json=[
+            {"number": 10, "title": "Active PR", "state": "open",
+             "merged_at": None, "user": {"login": "dev2"},
+             "requested_reviewers": [{"login": "rev1"}]},
+        ])
+    )
+    from src.tools.github_api import fetch_recent_activity
+    activity = await fetch_recent_activity("tok", "owner/repo", since_hours=24)
+    assert len(activity["opened_issues"]) >= 1
+    assert len(activity["active_prs"]) == 1
+    assert activity["active_prs"][0]["author"] == "dev2"
