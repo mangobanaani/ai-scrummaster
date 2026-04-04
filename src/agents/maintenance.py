@@ -25,6 +25,7 @@ def build_maintenance_task(
     auto_close_issues: list[dict],
     wip_violations: list[dict],
     repo: str,
+    stale_nudge_message: str = "",
 ) -> Task:
     instructions = [
         f"Execute maintenance actions for repository '{repo}':\n",
@@ -39,8 +40,9 @@ def build_maintenance_task(
                 f"- Issue #{issue['number']}: \"{issue['title']}\" "
                 f"(stale {issue['days_stale']} days, assigned to @{assignee_name})"
             )
+            nudge_text = stale_nudge_message or "a polite nudge reminding the assignee to update the issue"
             instructions.append(
-                f"  Call add_issue_comment on #{issue['number']} with a polite nudge."
+                f"  Call add_issue_comment on #{issue['number']} with: {nudge_text}"
             )
             instructions.append(
                 f"  Call issue_write on #{issue['number']} to add label 'stale'."

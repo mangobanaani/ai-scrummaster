@@ -147,7 +147,12 @@ async def standup(
         repo = validate_repo(data.get("repo", ""))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    since_hours = data.get("since_hours", 24)
+    try:
+        since_hours = int(data.get("since_hours", 24))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="since_hours must be an integer")
+    if since_hours < 1 or since_hours > 720:
+        raise HTTPException(status_code=422, detail="since_hours must be between 1 and 720")
 
     async def _run():
         try:

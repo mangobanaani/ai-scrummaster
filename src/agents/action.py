@@ -67,15 +67,21 @@ def build_action_task(
     comment_body = _format_comment(findings, dedup, triage.route.value)
 
     cve_ticket_instructions = ""
+    cve_step = 4
+    if pr_number:
+        cve_step = 5  # check run takes step 4
     for cve in sf.critical_cves:
+        pr_ref = f" — blocks PR #{pr_number}" if pr_number else ""
+        assignee = triage.pr_author or "repo maintainer"
         cve_ticket_instructions += (
-            f"\n4. Call issue_write to create a new issue with:\n"
-            f"   - title: '[SECURITY] {cve.cve_id or 'Critical CVE'} in {cve.package} — blocks PR #{pr_number}'\n"
+            f"\n{cve_step}. Call create_issue in '{repo}' with:\n"
+            f"   - title: '[SECURITY] {cve.cve_id or 'Critical CVE'} in {cve.package}{pr_ref}'\n"
             f"   - body: CVE details: {cve.description}. Fixed in: {cve.fixed_version or 'see advisory'}. "
             f"Advisory: {cve.advisory_url or 'https://osv.dev'}. "
-            f"Assigned to: {triage.pr_author or 'repo maintainer'}\n"
+            f"Assigned to: {assignee}\n"
             f"   - labels: ['security', 'critical', 'blocker']\n"
         )
+        cve_step += 1
 
     dedup_instruction = ""
     if dedup and dedup.is_duplicate and dedup.confidence >= dedup_confidence_threshold:
@@ -105,12 +111,24 @@ def build_action_task(
         labels += ["duplicate"]
     labels = sorted(set(labels))
 
+    check_run_instruction = ""
+    if pr_number:
+        conclusion = "failure" if sf.has_critical else "success"
+        check_run_instruction = (
+            f"\n4. Call create_check_run on '{repo}' with:\n"
+            f"   - name: 'agentic-scrum-master'\n"
+            f"   - head_sha: (the PR's head SHA)\n"
+            f"   - conclusion: '{conclusion}'\n"
+            f"   - summary: '{len(findings)} findings ({len(sf.critical_cves)} critical)'\n"
+        )
+
     description = (
         f"Execute the following GitHub actions for {triage.route.value} event in '{repo}':\n\n"
         f"1. Call add_issue_comment on {entity_ref} in '{repo}' with this exact body:\n"
         f"```\n{comment_body}\n```\n\n"
         f"2. Call issue_write on {entity_ref} in '{repo}' to add these labels: {labels}\n"
         + dedup_instruction
+        + check_run_instruction
         + cve_ticket_instructions
         + "\nDo not make any tool calls not listed above."
     )

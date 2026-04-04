@@ -9,8 +9,10 @@ AGENT_TOOL_WHITELIST: dict[str, list[str]] = {
     "devsecops": ["get_file_contents", "pull_request_read"],
     "action": [
         "add_issue_comment",
+        "create_issue",
         "issue_write",
         "list_issues",
+        "create_check_run",
     ],
 }
 

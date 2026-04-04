@@ -18,8 +18,16 @@ def check_wip_limits(issues: list[dict], limits: dict[str, int]) -> list[dict]:
     for issue in issues:
         for label in issue.get("labels", []):
             name = label["name"] if isinstance(label, dict) else label
+            # Match both exact labels ("feature") and prefixed labels ("type:feature")
+            matched_key = None
             if name in limits:
-                label_counts[name] = label_counts.get(name, 0) + 1
+                matched_key = name
+            elif ":" in name:
+                suffix = name.split(":", 1)[1]
+                if suffix in limits:
+                    matched_key = suffix
+            if matched_key:
+                label_counts[matched_key] = label_counts.get(matched_key, 0) + 1
 
     violations = []
     for label, limit in limits.items():
