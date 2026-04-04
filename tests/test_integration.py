@@ -239,11 +239,11 @@ async def test_story_decomposition_skips_duplicates():
         mock_crew_instance.kickoff_async = AsyncMock(side_effect=[mock_decomposer_output])
         mock_crew_cls.return_value = mock_crew_instance
 
-        # Both tickets already exist
+        # Both tickets already exist (exact title matches)
         respx.get("https://api.github.com/repos/owner/repo/issues").mock(
             return_value=httpx.Response(200, json=[
                 {"title": "App Epic"},
-                {"title": "Core Story backend"},
+                {"title": "Core Story"},
             ])
         )
         issues_route = respx.post("https://api.github.com/repos/owner/repo/issues").mock(

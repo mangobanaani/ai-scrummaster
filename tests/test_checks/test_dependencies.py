@@ -35,6 +35,42 @@ def test_extract_unknown_file_returns_empty():
     assert packages == []
 
 
+def test_extract_go_mod_block_require():
+    content = (
+        "module example.com/myapp\n"
+        "\n"
+        "go 1.21\n"
+        "\n"
+        "require (\n"
+        "\tgithub.com/gin-gonic/gin v1.9.1\n"
+        "\tgithub.com/lib/pq v1.10.9 // indirect\n"
+        ")\n"
+    )
+    packages = extract_packages(content, "go.mod")
+    assert len(packages) == 2
+    assert packages[0] == {"name": "github.com/gin-gonic/gin", "version": "1.9.1", "ecosystem": "Go"}
+    assert packages[1] == {"name": "github.com/lib/pq", "version": "1.10.9", "ecosystem": "Go"}
+
+
+def test_extract_go_mod_single_line_require():
+    content = (
+        "module example.com/myapp\n"
+        "\n"
+        "go 1.21\n"
+        "\n"
+        "require github.com/stretchr/testify v1.8.4\n"
+    )
+    packages = extract_packages(content, "go.mod")
+    assert len(packages) == 1
+    assert packages[0] == {"name": "github.com/stretchr/testify", "version": "1.8.4", "ecosystem": "Go"}
+
+
+def test_extract_go_mod_ignores_go_directive():
+    content = "module example.com/myapp\n\ngo 1.21\n"
+    packages = extract_packages(content, "go.mod")
+    assert packages == []
+
+
 @pytest.mark.asyncio
 @respx.mock
 async def test_lookup_cves_batch_returns_findings():

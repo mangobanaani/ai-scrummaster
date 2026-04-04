@@ -10,14 +10,14 @@ _FAKE_LLM = "ollama/" + os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
 
 
 def test_format_comment_no_findings():
-    result = _format_comment([], None, "issue")
+    result = _format_comment([], None)
     assert "No findings" in result
 
 
 def test_format_comment_with_critical():
     f = Finding(type=FindingType.secret, severity=Severity.critical,
                 description="AWS key found", recommendation="Rotate it")
-    result = _format_comment([f], None, "pr")
+    result = _format_comment([f], None)
     assert "AWS key found" in result
     assert "CRITICAL" in result
 
@@ -29,7 +29,7 @@ def test_format_comment_with_duplicate():
         confidence=0.92,
         reasoning="Same login bug",
     )
-    result = _format_comment([], dedup, "issue")
+    result = _format_comment([], dedup)
     assert "Duplicate detected" in result
     assert "92%" in result
 
@@ -118,4 +118,6 @@ def test_action_task_cve_no_pr_omits_pr_reference():
     task = build_action_task(agent=agent, triage=triage, findings=[cve],
                               dedup=None, pr_number=None, repo="owner/repo")
     assert "#None" not in task.description
-    assert "None" not in task.description.split("Assigned to:")[1].split("\n")[0] if "Assigned to:" in task.description else True
+    assert "Assigned to:" in task.description
+    assignee_line = task.description.split("Assigned to:")[1].split("\n")[0]
+    assert "None" not in assignee_line
