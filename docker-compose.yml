@@ -1,54 +1,31 @@
 services:
   app:
-    build:
-      context: .
-      target: production
+    build: .
     ports:
       - "8000:8000"
     env_file: .env
     depends_on:
-      ollama:
-        condition: service_healthy
-      github-mcp:
-        condition: service_healthy
+      - ollama
+      - github-mcp
     volumes:
       - ./policies:/app/policies
 
   ollama:
     image: ollama/ollama
-    env_file: .env
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    entrypoint:
-      - sh
-      - -c
-      - |
-        ollama serve &
-        sleep 5
-        ollama pull ${OLLAMA_MODEL:-qwen2.5:7b} || echo "Model pull failed — pull manually with: docker compose exec ollama ollama pull ${OLLAMA_MODEL:-qwen2.5:7b}"
-        wait
-    healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+    entrypoint: >
+      sh -c "ollama serve & sleep 5 && ollama pull ${OLLAMA_MODEL:-qwen2.5:27b} && wait"
 
   github-mcp:
     image: ghcr.io/github/github-mcp-server:latest
     environment:
       GITHUB_PERSONAL_ACCESS_TOKEN: ${GITHUB_TOKEN}
-    command: ["http", "--port", "3000", "--toolsets", "all"]
+    command: ["--transport", "sse", "--port", "3000"]
     ports:
       - "3000:3000"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 0"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
 
 volumes:
   ollama_data:

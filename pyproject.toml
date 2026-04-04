@@ -1,14 +1,10 @@
-[build-system]
-requires = ["setuptools>=68.0"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "ai-scrummaster"
+name = "github-crew"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "crewai>=0.80.0",
-    "crewai-tools[mcp]>=0.33.0",
+    "crewai-tools>=0.33.0",
     "fastapi>=0.115.0",
     "uvicorn>=0.32.0",
     "pydantic>=2.10.0",
