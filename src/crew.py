@@ -11,9 +11,10 @@ from src.schemas.findings import Finding, SecurityFindings
 from src.schemas.story import DecomposedStories
 from src.agents.story_decomposer import build_story_decomposer_agent, build_story_decomposer_task
 import dataclasses
-from src.tools.github_api import create_issue, fetch_open_issue_titles, link_sub_issue, fetch_pr_diff, fetch_open_issues_with_dates
+from src.tools.github_api import create_issue, fetch_open_issue_titles, link_sub_issue, fetch_pr_diff, fetch_open_issues_with_dates, fetch_recent_activity
 from src.checks.staleness import find_stale_issues, check_wip_limits
 from src.agents.maintenance import build_maintenance_agent, build_maintenance_task
+from src.agents.standup import build_standup_agent, build_standup_task
 from src.checks.secrets import scan_for_secrets
 from src.checks.dependencies import extract_packages, lookup_cves_batch
 from src.checks.owasp import classify_owasp
@@ -439,3 +440,29 @@ async def run_maintenance(repo: str) -> dict:
         "stale_closed": len(stale_close),
         "wip_violations": len(wip_violations),
     }
+
+
+async def run_standup(repo: str, since_hours: int = 24) -> dict:
+    """Generate and post a daily standup summary."""
+    llm = _make_llm()
+
+    activity = await fetch_recent_activity(settings.github_token, repo, since_hours)
+
+    agent = build_standup_agent(llm)
+    task = build_standup_task(agent, activity, repo)
+    crew = Crew(agents=[agent], tasks=[task], process=Process.sequential)
+    output = await crew.kickoff_async()
+
+    summary = str(output)
+    from datetime import date
+    title = f"Daily Standup - {date.today().isoformat()}"
+
+    await create_issue(
+        token=settings.github_token,
+        repo=repo,
+        title=title,
+        body=summary,
+        labels=["standup"],
+    )
+
+    return {"status": "standup_posted", "repo": repo, "title": title}

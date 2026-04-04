@@ -340,3 +340,24 @@ async def test_maintenance_missing_api_key():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/maintenance", json={"repo": "owner/repo"})
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_standup_endpoint():
+    with patch("src.webhook_router.run_standup", new_callable=AsyncMock) as mock_standup:
+        mock_standup.return_value = {"status": "standup_posted"}
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(
+                "/standup",
+                json={"repo": "owner/repo"},
+                headers={"X-Api-Key": settings.api_key},
+            )
+    assert resp.status_code == 202
+    mock_standup.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_standup_missing_api_key():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post("/standup", json={"repo": "owner/repo"})
+    assert resp.status_code == 403
