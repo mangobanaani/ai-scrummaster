@@ -1,6 +1,5 @@
 import os
 
-import pytest
 
 from src.agents.triage import build_triage_agent, build_triage_task
 

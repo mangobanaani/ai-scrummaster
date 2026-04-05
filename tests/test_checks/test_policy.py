@@ -1,4 +1,3 @@
-import os
 import pytest
 import yaml
 from src.checks.policy import PolicyEngine

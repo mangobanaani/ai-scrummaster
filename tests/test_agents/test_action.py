@@ -1,7 +1,7 @@
 import os
 
 from src.agents.action import build_action_agent, build_action_task, _format_comment
-from src.schemas.findings import Finding, FindingType, Severity, SecurityFindings
+from src.schemas.findings import Finding, FindingType, Severity
 from src.schemas.dedup import DedupResult
 from src.schemas.triage import TriageResult, RouteType
 

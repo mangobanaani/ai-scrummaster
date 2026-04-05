@@ -4,9 +4,9 @@ import re
 
 import httpx
 
-logger = logging.getLogger(__name__)
-
 from src.schemas.findings import Finding, FindingType, Severity
+
+logger = logging.getLogger(__name__)
 
 _OSV_API = "https://api.osv.dev/v1/query"
 

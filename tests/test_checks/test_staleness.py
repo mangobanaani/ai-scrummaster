@@ -8,7 +8,7 @@ def _make_issue(number, updated_days_ago, labels=None):
         "number": number,
         "title": f"Issue #{number}",
         "updated_at": updated.isoformat(),
-        "labels": [{"name": l} for l in (labels or [])],
+        "labels": [{"name": label} for label in (labels or [])],
         "assignee": {"login": "dev1"} if number % 2 == 0 else None,
         "html_url": f"https://github.com/owner/repo/issues/{number}",
     }

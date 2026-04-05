@@ -7,7 +7,7 @@ from src.config import settings
 from src.sanitizer import SanitizedPayload
 from src.schemas.triage import TriageResult, RouteType
 from src.schemas.dedup import DedupResult
-from src.schemas.findings import Finding, SecurityFindings
+from src.schemas.findings import Finding
 from src.schemas.story import DecomposedStories
 from src.agents.story_decomposer import (
     build_story_decomposer_agent,
@@ -267,7 +267,7 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
     elif raw_event.get("event_type") == "scan":
         triage = TriageResult(route=RouteType.scan, repo=payload.repo, entity_id=None)
     else:
-        with mcp_tools_for("triage") as triage_tools:
+        with mcp_tools_for("triage") as _triage_tools:
             triage_agent = build_triage_agent(llm)
             triage_task = build_triage_task(
                 triage_agent,

@@ -1,4 +1,3 @@
-import pytest
 from src.sanitizer import sanitize_field, sanitize_payload, SanitizedPayload
 
 

@@ -1,6 +1,5 @@
-import pytest
 from src.crew import _parse_decomposed, _topo_sort
-from src.schemas.story import TicketDraft, DecomposedStories
+from src.schemas.story import TicketDraft
 
 
 # --- _parse_decomposed ---
