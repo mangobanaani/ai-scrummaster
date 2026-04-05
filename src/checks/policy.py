@@ -37,7 +37,9 @@ class PolicyEngine:
             logger.warning("Policy file not found at %s, using defaults", rules_path)
             data = {}
         except yaml.YAMLError as exc:
-            logger.warning("Invalid YAML in policy file %s: %s, using defaults", rules_path, exc)
+            logger.warning(
+                "Invalid YAML in policy file %s: %s, using defaults", rules_path, exc
+            )
             data = {}
         self.rules = PolicyRules.model_validate(data)
 

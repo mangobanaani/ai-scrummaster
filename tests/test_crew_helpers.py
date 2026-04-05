@@ -5,6 +5,7 @@ from src.schemas.story import TicketDraft, DecomposedStories
 
 # --- _parse_decomposed ---
 
+
 def test_parse_decomposed_from_json_array():
     output = """[
         {"title": "Epic", "type": "epic", "category": "infra", "size": "L",
@@ -44,10 +45,16 @@ def test_parse_decomposed_returns_empty_on_garbage():
 
 # --- _topo_sort ---
 
+
 def _make_ticket(deps: list[int]) -> TicketDraft:
     return TicketDraft(
-        title="t", type="story", category="x",
-        size="S", priority="low", body="b", depends_on=deps,
+        title="t",
+        type="story",
+        category="x",
+        size="S",
+        priority="low",
+        body="b",
+        depends_on=deps,
     )
 
 
@@ -67,7 +74,7 @@ def test_topo_sort_linear_chain():
 def test_topo_sort_epic_before_stories():
     # epic at 0, stories at 1 and 2 both depending on epic
     tickets = [
-        _make_ticket([]),   # epic
+        _make_ticket([]),  # epic
         _make_ticket([0]),  # story A
         _make_ticket([0]),  # story B
     ]

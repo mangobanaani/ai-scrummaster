@@ -30,9 +30,7 @@ def test_find_stale_issues_none_stale():
 
 
 def test_check_wip_limits_detects_violations():
-    issues = [
-        _make_issue(i, 1, labels=["feature"]) for i in range(6)
-    ]
+    issues = [_make_issue(i, 1, labels=["feature"]) for i in range(6)]
     limits = {"feature": 5, "bug": 10}
     violations = check_wip_limits(issues, limits)
     assert len(violations) == 1

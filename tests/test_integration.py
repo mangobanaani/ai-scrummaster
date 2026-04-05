@@ -32,7 +32,9 @@ def issue_payload():
 @pytest.mark.asyncio
 async def test_webhook_invalid_signature(issue_payload):
     body = json.dumps(issue_payload).encode()
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         resp = await client.post(
             "/webhook",
             content=body,
@@ -50,9 +52,13 @@ async def test_webhook_valid_signature_accepted(issue_payload):
     body = json.dumps(issue_payload).encode()
     sig = _sign(body, settings.github_webhook_secret)
 
-    with patch("src.webhook_router.run_crew_for_event", new_callable=AsyncMock) as mock_crew:
+    with patch(
+        "src.webhook_router.run_crew_for_event", new_callable=AsyncMock
+    ) as mock_crew:
         mock_crew.return_value = {"status": "processed", "findings": 0}
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
             resp = await client.post(
                 "/webhook",
                 content=body,
@@ -70,9 +76,13 @@ async def test_webhook_valid_signature_accepted(issue_payload):
 async def test_stories_endpoint():
     payload = {"repo": "owner/repo", "story": "As a user I want to log in"}
 
-    with patch("src.webhook_router.run_crew_for_event", new_callable=AsyncMock) as mock_crew:
+    with patch(
+        "src.webhook_router.run_crew_for_event", new_callable=AsyncMock
+    ) as mock_crew:
         mock_crew.return_value = {"status": "story_created"}
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
             resp = await client.post(
                 "/stories", json=payload, headers={"X-Api-Key": settings.api_key}
             )
@@ -90,7 +100,9 @@ async def test_webhook_invalid_repo_rejected():
     }
     body = json.dumps(payload).encode()
     sig = _sign(body, settings.github_webhook_secret)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         resp = await client.post(
             "/webhook",
             content=body,
@@ -106,7 +118,9 @@ async def test_webhook_invalid_repo_rejected():
 @pytest.mark.asyncio
 async def test_stories_missing_api_key():
     payload = {"repo": "owner/repo", "story": "As a user I want to log in"}
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         resp = await client.post("/stories", json=payload)
     assert resp.status_code == 403
 
@@ -114,7 +128,9 @@ async def test_stories_missing_api_key():
 @pytest.mark.asyncio
 async def test_stories_invalid_repo():
     payload = {"repo": "not-a-valid-repo", "story": "As a user I want to log in"}
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         resp = await client.post(
             "/stories", json=payload, headers={"X-Api-Key": settings.api_key}
         )
@@ -123,9 +139,13 @@ async def test_stories_invalid_repo():
 
 @pytest.mark.asyncio
 async def test_scan_endpoint():
-    with patch("src.webhook_router.run_crew_for_event", new_callable=AsyncMock) as mock_crew:
+    with patch(
+        "src.webhook_router.run_crew_for_event", new_callable=AsyncMock
+    ) as mock_crew:
         mock_crew.return_value = {"status": "processed"}
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
             resp = await client.post(
                 "/scan",
                 json={"repo": "owner/repo"},
@@ -137,14 +157,18 @@ async def test_scan_endpoint():
 
 @pytest.mark.asyncio
 async def test_scan_missing_api_key():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         resp = await client.post("/scan", json={"repo": "owner/repo"})
     assert resp.status_code == 403
 
 
 @pytest.mark.asyncio
 async def test_health_endpoint():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         resp = await client.get("/health")
     assert resp.status_code == 200
     assert resp.json()["status"] == "ok"
@@ -177,13 +201,17 @@ async def test_story_decomposition_creates_issues():
         patch("src.crew.classify_owasp", return_value=[]),
     ):
         mock_crew_instance = AsyncMock()
-        mock_crew_instance.kickoff_async = AsyncMock(side_effect=[mock_decomposer_output])
+        mock_crew_instance.kickoff_async = AsyncMock(
+            side_effect=[mock_decomposer_output]
+        )
         mock_crew_cls.return_value = mock_crew_instance
 
-        existing_issues_route = respx.get("https://api.github.com/repos/owner/repo/issues").mock(
-            return_value=httpx.Response(200, json=[])
-        )
-        issues_route = respx.post("https://api.github.com/repos/owner/repo/issues").mock(
+        existing_issues_route = respx.get(
+            "https://api.github.com/repos/owner/repo/issues"
+        ).mock(return_value=httpx.Response(200, json=[]))
+        issues_route = respx.post(
+            "https://api.github.com/repos/owner/repo/issues"
+        ).mock(
             side_effect=[
                 httpx.Response(201, json={"number": 10, "id": 1001}),  # epic
                 httpx.Response(201, json={"number": 11, "id": 1002}),  # story
@@ -197,10 +225,17 @@ async def test_story_decomposition_creates_issues():
         from src.sanitizer import SanitizedPayload
 
         payload = SanitizedPayload(
-            repo="owner/repo", title="", body="", action="opened",
-            entity_id=None, diff=None, pr_author=None,
+            repo="owner/repo",
+            title="",
+            body="",
+            action="opened",
+            entity_id=None,
+            diff=None,
+            pr_author=None,
         )
-        result = await run_crew_for_event(payload, {"event_type": "story", "story": "Build an app"})
+        result = await run_crew_for_event(
+            payload, {"event_type": "story", "story": "Build an app"}
+        )
 
     assert result["status"] == "story_created"
     assert result["tickets_created"] == 2
@@ -236,28 +271,40 @@ async def test_story_decomposition_skips_duplicates():
         patch("src.crew.classify_owasp", return_value=[]),
     ):
         mock_crew_instance = AsyncMock()
-        mock_crew_instance.kickoff_async = AsyncMock(side_effect=[mock_decomposer_output])
+        mock_crew_instance.kickoff_async = AsyncMock(
+            side_effect=[mock_decomposer_output]
+        )
         mock_crew_cls.return_value = mock_crew_instance
 
         # Both tickets already exist (exact title matches)
         respx.get("https://api.github.com/repos/owner/repo/issues").mock(
-            return_value=httpx.Response(200, json=[
-                {"title": "App Epic"},
-                {"title": "Core Story"},
-            ])
+            return_value=httpx.Response(
+                200,
+                json=[
+                    {"title": "App Epic"},
+                    {"title": "Core Story"},
+                ],
+            )
         )
-        issues_route = respx.post("https://api.github.com/repos/owner/repo/issues").mock(
-            return_value=httpx.Response(201, json={"number": 10, "id": 1001})
-        )
+        issues_route = respx.post(
+            "https://api.github.com/repos/owner/repo/issues"
+        ).mock(return_value=httpx.Response(201, json={"number": 10, "id": 1001}))
 
         from src.crew import run_crew_for_event
         from src.sanitizer import SanitizedPayload
 
         payload = SanitizedPayload(
-            repo="owner/repo", title="", body="", action="opened",
-            entity_id=None, diff=None, pr_author=None,
+            repo="owner/repo",
+            title="",
+            body="",
+            action="opened",
+            entity_id=None,
+            diff=None,
+            pr_author=None,
         )
-        result = await run_crew_for_event(payload, {"event_type": "story", "story": "Build an app"})
+        result = await run_crew_for_event(
+            payload, {"event_type": "story", "story": "Build an app"}
+        )
 
     assert result["status"] == "story_created"
     assert result["tickets_created"] == 0
@@ -280,9 +327,13 @@ async def test_webhook_pr_opened_fetches_diff():
     body = json.dumps(payload).encode()
     sig = _sign(body, settings.github_webhook_secret)
 
-    with patch("src.webhook_router.run_crew_for_event", new_callable=AsyncMock) as mock_crew:
+    with patch(
+        "src.webhook_router.run_crew_for_event", new_callable=AsyncMock
+    ) as mock_crew:
         mock_crew.return_value = {"status": "processed"}
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
             resp = await client.post(
                 "/webhook",
                 content=body,
@@ -306,8 +357,12 @@ async def test_webhook_pr_labeled_is_skipped():
     body = json.dumps(payload).encode()
     sig = _sign(body, settings.github_webhook_secret)
 
-    with patch("src.webhook_router.run_crew_for_event", new_callable=AsyncMock) as mock_crew:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    with patch(
+        "src.webhook_router.run_crew_for_event", new_callable=AsyncMock
+    ) as mock_crew:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
             resp = await client.post(
                 "/webhook",
                 content=body,
@@ -323,9 +378,13 @@ async def test_webhook_pr_labeled_is_skipped():
 
 @pytest.mark.asyncio
 async def test_maintenance_endpoint():
-    with patch("src.webhook_router.run_maintenance", new_callable=AsyncMock) as mock_maint:
+    with patch(
+        "src.webhook_router.run_maintenance", new_callable=AsyncMock
+    ) as mock_maint:
         mock_maint.return_value = {"status": "clean"}
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
             resp = await client.post(
                 "/maintenance",
                 json={"repo": "owner/repo"},
@@ -337,16 +396,22 @@ async def test_maintenance_endpoint():
 
 @pytest.mark.asyncio
 async def test_maintenance_missing_api_key():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         resp = await client.post("/maintenance", json={"repo": "owner/repo"})
     assert resp.status_code == 403
 
 
 @pytest.mark.asyncio
 async def test_standup_endpoint():
-    with patch("src.webhook_router.run_standup", new_callable=AsyncMock) as mock_standup:
+    with patch(
+        "src.webhook_router.run_standup", new_callable=AsyncMock
+    ) as mock_standup:
         mock_standup.return_value = {"status": "standup_posted"}
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
             resp = await client.post(
                 "/standup",
                 json={"repo": "owner/repo"},
@@ -358,14 +423,18 @@ async def test_standup_endpoint():
 
 @pytest.mark.asyncio
 async def test_standup_missing_api_key():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         resp = await client.post("/standup", json={"repo": "owner/repo"})
     assert resp.status_code == 403
 
 
 @pytest.mark.asyncio
 async def test_standup_rejects_negative_since_hours():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         resp = await client.post(
             "/standup",
             json={"repo": "owner/repo", "since_hours": -5},
@@ -376,7 +445,9 @@ async def test_standup_rejects_negative_since_hours():
 
 @pytest.mark.asyncio
 async def test_standup_rejects_excessive_since_hours():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         resp = await client.post(
             "/standup",
             json={"repo": "owner/repo", "since_hours": 9999},
@@ -387,7 +458,9 @@ async def test_standup_rejects_excessive_since_hours():
 
 @pytest.mark.asyncio
 async def test_standup_rejects_non_integer_since_hours():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         resp = await client.post(
             "/standup",
             json={"repo": "owner/repo", "since_hours": "abc"},

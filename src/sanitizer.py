@@ -8,7 +8,8 @@ _REPO_FORMAT = re.compile(r"^[\w][\w.-]{0,98}/[\w][\w.-]{0,98}$", re.ASCII)
 logger = logging.getLogger(__name__)
 
 _INJECTION_PATTERNS: list[re.Pattern] = [
-    re.compile(p, re.IGNORECASE) for p in [
+    re.compile(p, re.IGNORECASE)
+    for p in [
         r"<\|system\|>",
         r"<\|user\|>",
         r"<\|assistant\|>",
@@ -100,11 +101,7 @@ def sanitize_payload(raw: dict) -> SanitizedPayload:
     title = sanitize_field(str(issue.get("title") or ""), "title")
     body = sanitize_field(str(issue.get("body") or ""), "body")
     entity_id = issue.get("number")
-    pr_author = (
-        issue.get("user", {}).get("login")
-        if raw.get("pull_request")
-        else None
-    )
+    pr_author = issue.get("user", {}).get("login") if raw.get("pull_request") else None
 
     action = sanitize_field(raw.get("action", ""), "title")
     if pr_author:

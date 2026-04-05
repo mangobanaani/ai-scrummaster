@@ -1,5 +1,8 @@
 import os
-from src.agents.story_decomposer import build_story_decomposer_agent, build_story_decomposer_task
+from src.agents.story_decomposer import (
+    build_story_decomposer_agent,
+    build_story_decomposer_task,
+)
 
 _FAKE_LLM = "ollama/" + os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
 
@@ -30,7 +33,15 @@ def test_decomposer_task_delimits_untrusted_input():
 def test_decomposer_task_lists_all_json_fields():
     agent = build_story_decomposer_agent(_FAKE_LLM)
     task = build_story_decomposer_task(agent, "r", "test")
-    for field in ["title", "type", "category", "size", "priority", "body", "depends_on"]:
+    for field in [
+        "title",
+        "type",
+        "category",
+        "size",
+        "priority",
+        "body",
+        "depends_on",
+    ]:
         assert field in task.description
 
 

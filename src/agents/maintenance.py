@@ -32,15 +32,22 @@ def build_maintenance_task(
     ]
 
     if stale_issues:
-        instructions.append("**Stale issues to nudge** (post a comment reminding the assignee):")
+        instructions.append(
+            "**Stale issues to nudge** (post a comment reminding the assignee):"
+        )
         for issue in stale_issues:
             assignee = issue.get("assignee", {})
-            assignee_name = assignee.get("login", "unassigned") if assignee else "unassigned"
+            assignee_name = (
+                assignee.get("login", "unassigned") if assignee else "unassigned"
+            )
             instructions.append(
-                f"- Issue #{issue['number']}: \"{issue['title']}\" "
+                f'- Issue #{issue["number"]}: "{issue["title"]}" '
                 f"(stale {issue['days_stale']} days, assigned to @{assignee_name})"
             )
-            nudge_text = stale_nudge_message or "a polite nudge reminding the assignee to update the issue"
+            nudge_text = (
+                stale_nudge_message
+                or "a polite nudge reminding the assignee to update the issue"
+            )
             instructions.append(
                 f"  Call add_issue_comment on #{issue['number']} with: {nudge_text}"
             )
@@ -49,10 +56,12 @@ def build_maintenance_task(
             )
 
     if auto_close_issues:
-        instructions.append("\n**Issues to close** (inactive beyond auto-close threshold):")
+        instructions.append(
+            "\n**Issues to close** (inactive beyond auto-close threshold):"
+        )
         for issue in auto_close_issues:
             instructions.append(
-                f"- Issue #{issue['number']}: \"{issue['title']}\" "
+                f'- Issue #{issue["number"]}: "{issue["title"]}" '
                 f"(stale {issue['days_stale']} days)"
             )
             instructions.append(

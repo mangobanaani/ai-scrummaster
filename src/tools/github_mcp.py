@@ -42,6 +42,7 @@ def mcp_tools_for(agent_name: str):
         missing = set(whitelist) - {t.name for t in filtered}
         if missing:
             import logging
+
             logging.getLogger(__name__).warning(
                 "MCP tools not found on server (check server version): %s", missing
             )

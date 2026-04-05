@@ -58,14 +58,22 @@ def extract_packages(content: str, filename: str) -> list[dict]:
                 parts = split[1].strip().split()
                 if len(parts) == 2 and parts[1].startswith("v") and "/" in parts[0]:
                     results.append(
-                        {"name": parts[0], "version": parts[1].lstrip("v"), "ecosystem": "Go"}
+                        {
+                            "name": parts[0],
+                            "version": parts[1].lstrip("v"),
+                            "ecosystem": "Go",
+                        }
                     )
                 continue
             if in_require:
                 parts = stripped.split()
                 if len(parts) >= 2 and parts[1].startswith("v") and "/" in parts[0]:
                     results.append(
-                        {"name": parts[0], "version": parts[1].lstrip("v"), "ecosystem": "Go"}
+                        {
+                            "name": parts[0],
+                            "version": parts[1].lstrip("v"),
+                            "ecosystem": "Go",
+                        }
                     )
         return results
 
@@ -108,7 +116,9 @@ def _parse_severity(vuln: dict) -> Severity:
             upper = score_raw.upper()
             # High impact indicators: network-accessible, no privileges, no user interaction
             high_impact = all(x in upper for x in ["AV:N", "PR:N"])
-            high_scope = "S:C" in upper or "C:H" in upper or "I:H" in upper or "A:H" in upper
+            high_scope = (
+                "S:C" in upper or "C:H" in upper or "I:H" in upper or "A:H" in upper
+            )
             if high_impact and high_scope:
                 return Severity.critical
             if high_impact:
@@ -144,7 +154,9 @@ async def lookup_cves_batch(packages: list[dict]) -> list[Finding]:
                 resp.raise_for_status()
                 data = resp.json()
             except httpx.HTTPError as exc:
-                logger.warning("CVE lookup failed for %s@%s: %s", pkg["name"], pkg["version"], exc)
+                logger.warning(
+                    "CVE lookup failed for %s@%s: %s", pkg["name"], pkg["version"], exc
+                )
                 continue
 
             for vuln in data.get("vulns", []):

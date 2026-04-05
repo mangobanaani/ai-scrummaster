@@ -11,7 +11,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     policies_path: str = "policies/rules.yaml"
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
 
 settings = Settings()

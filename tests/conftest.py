@@ -15,6 +15,7 @@ os.environ.setdefault("POLICIES_PATH", "policies/rules.yaml")
 def _reset_policy_engine_cache():
     """Reset the cached PolicyEngine between tests to prevent leaking state."""
     from src.crew import _reset_policy_cache
+
     _reset_policy_cache()
     yield
     _reset_policy_cache()

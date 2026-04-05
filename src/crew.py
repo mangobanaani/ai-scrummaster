@@ -9,9 +9,21 @@ from src.schemas.triage import TriageResult, RouteType
 from src.schemas.dedup import DedupResult
 from src.schemas.findings import Finding, SecurityFindings
 from src.schemas.story import DecomposedStories
-from src.agents.story_decomposer import build_story_decomposer_agent, build_story_decomposer_task
+from src.agents.story_decomposer import (
+    build_story_decomposer_agent,
+    build_story_decomposer_task,
+)
 import dataclasses
-from src.tools.github_api import create_issue, fetch_open_issue_titles, link_sub_issue, fetch_pr_diff, fetch_open_issues_with_dates, fetch_recent_activity, fetch_changed_dep_files, fetch_repo_dep_files
+from src.tools.github_api import (
+    create_issue,
+    fetch_open_issue_titles,
+    link_sub_issue,
+    fetch_pr_diff,
+    fetch_open_issues_with_dates,
+    fetch_recent_activity,
+    fetch_changed_dep_files,
+    fetch_repo_dep_files,
+)
 from src.checks.staleness import find_stale_issues, check_wip_limits
 from src.agents.maintenance import build_maintenance_agent, build_maintenance_task
 from src.agents.standup import build_standup_agent, build_standup_task
@@ -41,6 +53,7 @@ def _reset_policy_cache() -> None:
     """Reset the cached PolicyEngine instance. Used by tests to ensure isolation."""
     global _policy_engine
     _policy_engine = None
+
 
 _JSON_FENCE = re.compile(r"```(?:json)?\s*([\s\S]*?)```", re.DOTALL)
 
@@ -100,7 +113,9 @@ def _parse_triage(output: str) -> TriageResult:
         raw = json.loads(_extract_json(output))
         return TriageResult.model_validate(raw)
     except Exception:
-        logger.warning("Triage parse failed, defaulting to issue route: %s", output[:200])
+        logger.warning(
+            "Triage parse failed, defaulting to issue route: %s", output[:200]
+        )
         return TriageResult(route=RouteType.issue, repo="unknown", entity_id=None)
 
 
@@ -115,7 +130,13 @@ def _parse_dedup(output: str) -> DedupResult:
 def _parse_findings(output: str) -> list[Finding]:
     try:
         raw = json.loads(_extract_json(output))
-        items = raw if isinstance(raw, list) else raw.get("findings", []) if isinstance(raw, dict) else []
+        items = (
+            raw
+            if isinstance(raw, list)
+            else raw.get("findings", [])
+            if isinstance(raw, dict)
+            else []
+        )
         return [Finding.model_validate(f) for f in items]
     except Exception:
         logger.warning("Findings parse failed: %s", output[:200])
@@ -193,14 +214,31 @@ def _topo_sort(tickets: list) -> list[int]:
     return order
 
 
-_STOP_WORDS = {"a", "an", "the", "of", "to", "in", "for", "and", "or", "with", "is", "be", "on"}
+_STOP_WORDS = {
+    "a",
+    "an",
+    "the",
+    "of",
+    "to",
+    "in",
+    "for",
+    "and",
+    "or",
+    "with",
+    "is",
+    "be",
+    "on",
+}
 _DEDUP_THRESHOLD = 0.7
 
 
 def _title_is_duplicate(title: str, existing: list[str]) -> bool:
     """True if title overlaps sufficiently with any existing issue title (Jaccard >= threshold)."""
+
     def tokens(s: str) -> set[str]:
-        return {w.lower() for w in re.split(r"\W+", s) if w and w.lower() not in _STOP_WORDS}
+        return {
+            w.lower() for w in re.split(r"\W+", s) if w and w.lower() not in _STOP_WORDS
+        }
 
     new_tokens = tokens(title)
     if not new_tokens:
@@ -209,7 +247,10 @@ def _title_is_duplicate(title: str, existing: list[str]) -> bool:
         ex_tokens = tokens(existing_title)
         if not ex_tokens:
             continue
-        if len(new_tokens & ex_tokens) / len(new_tokens | ex_tokens) >= _DEDUP_THRESHOLD:
+        if (
+            len(new_tokens & ex_tokens) / len(new_tokens | ex_tokens)
+            >= _DEDUP_THRESHOLD
+        ):
             return True
     return False
 
@@ -228,14 +269,19 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
     else:
         with mcp_tools_for("triage") as triage_tools:
             triage_agent = build_triage_agent(llm)
-            triage_task = build_triage_task(triage_agent, {
-                "event_type": raw_event.get("event_type", "issues"),
-                "action": payload.action,
-                "repo": payload.repo,
-                "entity_id": payload.entity_id,
-                "title": payload.title,
-            })
-            crew = Crew(agents=[triage_agent], tasks=[triage_task], process=Process.sequential)
+            triage_task = build_triage_task(
+                triage_agent,
+                {
+                    "event_type": raw_event.get("event_type", "issues"),
+                    "action": payload.action,
+                    "repo": payload.repo,
+                    "entity_id": payload.entity_id,
+                    "title": payload.title,
+                },
+            )
+            crew = Crew(
+                agents=[triage_agent], tasks=[triage_task], process=Process.sequential
+            )
             triage_output = await crew.kickoff_async()
         triage = _parse_triage(str(triage_output))
     logger.info("Triage result: %s", triage.model_dump())
@@ -243,6 +289,7 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
     # --- Fetch PR diff ---
     if triage.route == RouteType.pr and triage.entity_id:
         from src.sanitizer import sanitize_field
+
         diff = await fetch_pr_diff(settings.github_token, triage.repo, triage.entity_id)
         if diff:
             payload = dataclasses.replace(payload, diff=sanitize_field(diff, "diff"))
@@ -288,12 +335,15 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
         branch = raw_event.get("pull_request", {}).get("head", {}).get("ref", "")
         if branch and not policy.check_branch_name(branch):
             from src.schemas.findings import FindingType, Severity
-            policy_findings.append(Finding(
-                type=FindingType.policy,
-                severity=Severity.medium,
-                description=f"Branch '{branch}' does not follow naming convention: {policy.rules.branch_naming.pattern}",
-                recommendation=f"Rename branch to match pattern: {policy.rules.branch_naming.pattern}",
-            ))
+
+            policy_findings.append(
+                Finding(
+                    type=FindingType.policy,
+                    severity=Severity.medium,
+                    description=f"Branch '{branch}' does not follow naming convention: {policy.rules.branch_naming.pattern}",
+                    recommendation=f"Rename branch to match pattern: {policy.rules.branch_naming.pattern}",
+                )
+            )
 
     # --- Story Decomposer (only for story events) ---
     if triage.route == RouteType.story:
@@ -302,14 +352,18 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
             decomposer_agent, triage.repo, raw_event.get("story", "")
         )
         crew = Crew(
-            agents=[decomposer_agent], tasks=[decomposer_task], process=Process.sequential
+            agents=[decomposer_agent],
+            tasks=[decomposer_task],
+            process=Process.sequential,
         )
         decomposer_output = await crew.kickoff_async()
 
         decomposed = _parse_decomposed(str(decomposer_output))
         order = _topo_sort(decomposed.tickets)
 
-        existing_titles = await fetch_open_issue_titles(settings.github_token, triage.repo)
+        existing_titles = await fetch_open_issue_titles(
+            settings.github_token, triage.repo
+        )
 
         index_to_number: dict[int, int] = {}
         index_to_id: dict[int, int] = {}
@@ -375,10 +429,16 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
         with mcp_tools_for("dedup") as dedup_tools:
             dedup_agent = build_dedup_agent(llm, dedup_tools)
             dedup_task = build_dedup_task(
-                dedup_agent, triage.repo, triage.entity_id,
-                payload.title, payload.body, policy.rules.dedup_confidence_threshold,
+                dedup_agent,
+                triage.repo,
+                triage.entity_id,
+                payload.title,
+                payload.body,
+                policy.rules.dedup_confidence_threshold,
             )
-            crew = Crew(agents=[dedup_agent], tasks=[dedup_task], process=Process.sequential)
+            crew = Crew(
+                agents=[dedup_agent], tasks=[dedup_task], process=Process.sequential
+            )
             dedup_output = await crew.kickoff_async()
         dedup = _parse_dedup(str(dedup_output))
 
@@ -418,7 +478,9 @@ async def run_crew_for_event(payload: SanitizedPayload, raw_event: dict) -> dict
             dedup_confidence_threshold=policy.rules.dedup_confidence_threshold,
             pr_author=payload.pr_author,
         )
-        crew = Crew(agents=[action_agent], tasks=[action_task], process=Process.sequential)
+        crew = Crew(
+            agents=[action_agent], tasks=[action_task], process=Process.sequential
+        )
         action_output = await crew.kickoff_async()
 
     return {
@@ -441,6 +503,7 @@ async def run_maintenance(repo: str) -> dict:
     wip_violations = check_wip_limits(issues, policy.rules.wip_limits)
 
     from datetime import datetime, timezone
+
     stale_nudge = []
     stale_close = []
     for issue in stale:
@@ -490,6 +553,7 @@ async def run_standup(repo: str, since_hours: int = 24) -> dict:
 
     summary = str(output)
     from datetime import date
+
     title = f"Daily Standup - {date.today().isoformat()}"
 
     await create_issue(

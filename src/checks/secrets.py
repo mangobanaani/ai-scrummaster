@@ -86,7 +86,9 @@ _SECRET_PATTERNS: list[tuple[str, re.Pattern, str]] = [
     ),
     (
         "Azure Storage Key",
-        re.compile(r"DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[A-Za-z0-9/+=]{86}"),
+        re.compile(
+            r"DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[A-Za-z0-9/+=]{86}"
+        ),
         "Rotate the Azure Storage key in the Azure portal and use Managed Identity instead.",
     ),
     (

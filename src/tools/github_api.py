@@ -101,14 +101,16 @@ async def fetch_open_issues_with_dates(token: str, repo: str) -> list[dict]:
             for issue in batch:
                 if issue.get("pull_request"):
                     continue  # GitHub issues API includes PRs; skip them
-                all_issues.append({
-                    "number": issue["number"],
-                    "title": issue["title"],
-                    "updated_at": issue["updated_at"],
-                    "labels": issue.get("labels", []),
-                    "assignee": issue.get("assignee"),
-                    "html_url": issue["html_url"],
-                })
+                all_issues.append(
+                    {
+                        "number": issue["number"],
+                        "title": issue["title"],
+                        "updated_at": issue["updated_at"],
+                        "labels": issue.get("labels", []),
+                        "assignee": issue.get("assignee"),
+                        "html_url": issue["html_url"],
+                    }
+                )
     return all_issues
 
 
@@ -185,6 +187,7 @@ async def fetch_repo_dep_files(token: str, repo: str) -> dict[str, str]:
 async def fetch_recent_activity(token: str, repo: str, since_hours: int = 24) -> dict:
     """Fetch recent issues and PRs for standup summaries."""
     from datetime import datetime, timezone, timedelta
+
     since = (datetime.now(timezone.utc) - timedelta(hours=since_hours)).isoformat()
     headers = {**_HEADERS, "Authorization": f"Bearer {token}"}
 
@@ -207,7 +210,11 @@ async def fetch_recent_activity(token: str, repo: str, since_hours: int = 24) ->
         for item in resp.json():
             if item.get("pull_request"):
                 continue
-            entry = {"number": item["number"], "title": item["title"], "author": item["user"]["login"]}
+            entry = {
+                "number": item["number"],
+                "title": item["title"],
+                "author": item["user"]["login"],
+            }
             if item["state"] == "closed":
                 closed_at = item.get("closed_at")
                 if closed_at:
@@ -215,7 +222,9 @@ async def fetch_recent_activity(token: str, repo: str, since_hours: int = 24) ->
                     if closed_dt >= since_dt_issues:
                         activity["closed_issues"].append(entry)
             else:
-                created = datetime.fromisoformat(item["created_at"].replace("Z", "+00:00"))
+                created = datetime.fromisoformat(
+                    item["created_at"].replace("Z", "+00:00")
+                )
                 if created >= since_dt_issues:
                     activity["opened_issues"].append(entry)
 
@@ -223,7 +232,12 @@ async def fetch_recent_activity(token: str, repo: str, since_hours: int = 24) ->
         resp = await client.get(
             f"{_GITHUB_API}/repos/{repo}/pulls",
             headers=headers,
-            params={"state": "all", "sort": "updated", "direction": "desc", "per_page": 50},
+            params={
+                "state": "all",
+                "sort": "updated",
+                "direction": "desc",
+                "per_page": 50,
+            },
         )
         resp.raise_for_status()
         since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))

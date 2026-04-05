@@ -33,16 +33,14 @@ def test_ticket_draft_with_deps():
 def test_ticket_draft_rejects_invalid_type():
     with pytest.raises(ValidationError):
         TicketDraft(
-            title="X", type="sprint", category="x",
-            size="S", priority="low", body="x"
+            title="X", type="sprint", category="x", size="S", priority="low", body="x"
         )
 
 
 def test_ticket_draft_rejects_invalid_size():
     with pytest.raises(ValidationError):
         TicketDraft(
-            title="X", type="story", category="x",
-            size="HUGE", priority="low", body="x"
+            title="X", type="story", category="x", size="HUGE", priority="low", body="x"
         )
 
 
@@ -52,11 +50,27 @@ def test_decomposed_stories_empty_default():
 
 
 def test_decomposed_stories_with_tickets():
-    d = DecomposedStories(tickets=[
-        TicketDraft(title="Epic", type="epic", category="infra", size="L", priority="high", body="..."),
-        TicketDraft(title="Story", type="story", category="backend", size="S", priority="medium",
-                    body="...", depends_on=[0]),
-    ])
+    d = DecomposedStories(
+        tickets=[
+            TicketDraft(
+                title="Epic",
+                type="epic",
+                category="infra",
+                size="L",
+                priority="high",
+                body="...",
+            ),
+            TicketDraft(
+                title="Story",
+                type="story",
+                category="backend",
+                size="S",
+                priority="medium",
+                body="...",
+                depends_on=[0],
+            ),
+        ]
+    )
     assert len(d.tickets) == 2
     assert d.tickets[1].depends_on == [0]
 

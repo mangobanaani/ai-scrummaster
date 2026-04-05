@@ -21,7 +21,9 @@ class TicketDraft(BaseModel):
     size: Literal["XS", "S", "M", "L", "XL"]
     priority: Literal["low", "medium", "high", "critical"]
     body: str  # markdown with user story, AC (Given/When/Then), and DoD checkboxes
-    depends_on: list[int] = Field(default_factory=list)  # 0-based indices into DecomposedStories.tickets
+    depends_on: list[int] = Field(
+        default_factory=list
+    )  # 0-based indices into DecomposedStories.tickets
 
 
 class DecomposedStories(BaseModel):

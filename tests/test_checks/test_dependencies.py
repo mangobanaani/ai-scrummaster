@@ -48,8 +48,16 @@ def test_extract_go_mod_block_require():
     )
     packages = extract_packages(content, "go.mod")
     assert len(packages) == 2
-    assert packages[0] == {"name": "github.com/gin-gonic/gin", "version": "1.9.1", "ecosystem": "Go"}
-    assert packages[1] == {"name": "github.com/lib/pq", "version": "1.10.9", "ecosystem": "Go"}
+    assert packages[0] == {
+        "name": "github.com/gin-gonic/gin",
+        "version": "1.9.1",
+        "ecosystem": "Go",
+    }
+    assert packages[1] == {
+        "name": "github.com/lib/pq",
+        "version": "1.10.9",
+        "ecosystem": "Go",
+    }
 
 
 def test_extract_go_mod_single_line_require():
@@ -62,7 +70,11 @@ def test_extract_go_mod_single_line_require():
     )
     packages = extract_packages(content, "go.mod")
     assert len(packages) == 1
-    assert packages[0] == {"name": "github.com/stretchr/testify", "version": "1.8.4", "ecosystem": "Go"}
+    assert packages[0] == {
+        "name": "github.com/stretchr/testify",
+        "version": "1.8.4",
+        "ecosystem": "Go",
+    }
 
 
 def test_extract_go_mod_ignores_go_directive():
@@ -84,8 +96,24 @@ async def test_lookup_cves_batch_returns_findings():
                         "aliases": ["CVE-2024-1234"],
                         "summary": "Critical RCE in requests",
                         "severity": [{"type": "CVSS_V3", "score": "9.8"}],
-                        "affected": [{"versions": ["2.28.0"], "package": {"name": "requests", "ecosystem": "PyPI"}, "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "2.31.0"}]}]}],
-                        "references": [{"url": "https://osv.dev/vulnerability/GHSA-test-1234-abcd"}],
+                        "affected": [
+                            {
+                                "versions": ["2.28.0"],
+                                "package": {"name": "requests", "ecosystem": "PyPI"},
+                                "ranges": [
+                                    {
+                                        "type": "ECOSYSTEM",
+                                        "events": [
+                                            {"introduced": "0"},
+                                            {"fixed": "2.31.0"},
+                                        ],
+                                    }
+                                ],
+                            }
+                        ],
+                        "references": [
+                            {"url": "https://osv.dev/vulnerability/GHSA-test-1234-abcd"}
+                        ],
                     }
                 ]
             },
@@ -100,25 +128,41 @@ async def test_lookup_cves_batch_returns_findings():
 
 def test_parse_severity_cvss_vector_critical():
     """CVSS vector with network access, no privs, high impact -> critical."""
-    vuln = {"severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"}]}
+    vuln = {
+        "severity": [
+            {"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"}
+        ]
+    }
     assert _parse_severity(vuln) == Severity.critical
 
 
 def test_parse_severity_cvss_vector_high():
     """CVSS vector with network access, no privs, but not all high impact -> high."""
-    vuln = {"severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N"}]}
+    vuln = {
+        "severity": [
+            {"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N"}
+        ]
+    }
     assert _parse_severity(vuln) == Severity.high
 
 
 def test_parse_severity_cvss_vector_medium():
     """CVSS vector with network but requires privileges -> medium."""
-    vuln = {"severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N"}]}
+    vuln = {
+        "severity": [
+            {"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N"}
+        ]
+    }
     assert _parse_severity(vuln) == Severity.medium
 
 
 def test_parse_severity_cvss_vector_low():
     """CVSS vector requiring local access -> low."""
-    vuln = {"severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N"}]}
+    vuln = {
+        "severity": [
+            {"type": "CVSS_V3", "score": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N"}
+        ]
+    }
     assert _parse_severity(vuln) == Severity.low
 
 
@@ -132,7 +176,9 @@ def test_parse_severity_database_specific_takes_precedence():
     """database_specific.severity should take precedence over CVSS vector."""
     vuln = {
         "database_specific": {"severity": "LOW"},
-        "severity": [{"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"}],
+        "severity": [
+            {"type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"}
+        ],
     }
     assert _parse_severity(vuln) == Severity.low
 

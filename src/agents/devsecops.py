@@ -36,15 +36,25 @@ def build_devsecops_task(
     checks_summary = []
 
     for f in secret_findings:
-        checks_summary.append(f"SECRET DETECTED: {f.description}. Fix: {f.recommendation}")
+        checks_summary.append(
+            f"SECRET DETECTED: {f.description}. Fix: {f.recommendation}"
+        )
 
     for f in cve_findings:
-        checks_summary.append(f"CVE ({f.severity.value}): {f.description}. Fix: {f.recommendation}")
+        checks_summary.append(
+            f"CVE ({f.severity.value}): {f.description}. Fix: {f.recommendation}"
+        )
 
     if owasp_categories:
-        checks_summary.append(f"OWASP categories detected: {', '.join(owasp_categories)}")
+        checks_summary.append(
+            f"OWASP categories detected: {', '.join(owasp_categories)}"
+        )
 
-    checks_block = "\n".join(f"- {c}" for c in checks_summary) if checks_summary else "No pre-scan findings."
+    checks_block = (
+        "\n".join(f"- {c}" for c in checks_summary)
+        if checks_summary
+        else "No pre-scan findings."
+    )
 
     if event_type == "issue":
         task_description = (

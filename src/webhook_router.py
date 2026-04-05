@@ -2,10 +2,23 @@ import hashlib
 import hmac
 import json
 import logging
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, Security
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    Security,
+)
 from fastapi.security import APIKeyHeader
 from src.config import settings
-from src.sanitizer import sanitize_payload, sanitize_field, validate_repo, SanitizedPayload
+from src.sanitizer import (
+    sanitize_payload,
+    sanitize_field,
+    validate_repo,
+    SanitizedPayload,
+)
 from src.crew import run_crew_for_event, run_maintenance, run_standup
 from src.schemas.story import StoryInput
 
@@ -21,9 +34,12 @@ def _require_api_key(key: str | None = Security(_api_key_header)) -> None:
 
 
 def _verify_signature(body: bytes, signature: str) -> bool:
-    expected = "sha256=" + hmac.new(
-        settings.github_webhook_secret.encode(), body, hashlib.sha256
-    ).hexdigest()
+    expected = (
+        "sha256="
+        + hmac.new(
+            settings.github_webhook_secret.encode(), body, hashlib.sha256
+        ).hexdigest()
+    )
     return hmac.compare_digest(expected, signature)
 
 
@@ -75,7 +91,9 @@ async def create_story(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     sanitized_story = sanitize_field(story_input.story, "body")
-    payload = SanitizedPayload(repo=repo, title="", body=sanitized_story, event_type="story")
+    payload = SanitizedPayload(
+        repo=repo, title="", body=sanitized_story, event_type="story"
+    )
     raw_event = {"event_type": "story", "repo": repo, "story": sanitized_story}
     background_tasks.add_task(_dispatch, payload, raw_event)
     return Response(status_code=202)
@@ -152,7 +170,9 @@ async def standup(
     except (TypeError, ValueError):
         raise HTTPException(status_code=422, detail="since_hours must be an integer")
     if since_hours < 1 or since_hours > 720:
-        raise HTTPException(status_code=422, detail="since_hours must be between 1 and 720")
+        raise HTTPException(
+            status_code=422, detail="since_hours must be between 1 and 720"
+        )
 
     async def _run():
         try:

@@ -30,12 +30,16 @@ def build_standup_task(agent: Agent, activity: dict, repo: str) -> Task:
             f"There was no activity in the last 24 hours. Write a short 'quiet day' summary."
         )
     else:
-        lines = [f"Write a daily standup summary for '{repo}' based on this activity:\n"]
+        lines = [
+            f"Write a daily standup summary for '{repo}' based on this activity:\n"
+        ]
 
         if merged:
             lines.append("**Merged PRs (Done):**")
             for pr in merged:
-                lines.append(f"- PR #{pr['number']}: {pr['title']} (by @{pr['author']})")
+                lines.append(
+                    f"- PR #{pr['number']}: {pr['title']} (by @{pr['author']})"
+                )
 
         if closed:
             lines.append("\n**Closed Issues (Done):**")
@@ -46,12 +50,16 @@ def build_standup_task(agent: Agent, activity: dict, repo: str) -> Task:
             lines.append("\n**Active PRs (In Progress):**")
             for pr in active:
                 reviewers = ", ".join(f"@{r}" for r in pr.get("reviewers", []))
-                lines.append(f"- PR #{pr['number']}: {pr['title']} (by @{pr['author']}, reviewers: {reviewers or 'none'})")
+                lines.append(
+                    f"- PR #{pr['number']}: {pr['title']} (by @{pr['author']}, reviewers: {reviewers or 'none'})"
+                )
 
         if opened:
             lines.append("\n**Opened Issues:**")
             for issue in opened:
-                lines.append(f"- Issue #{issue['number']}: {issue['title']} (by @{issue['author']})")
+                lines.append(
+                    f"- Issue #{issue['number']}: {issue['title']} (by @{issue['author']})"
+                )
 
         lines.append(
             "\nFormat the output as a clean markdown standup with sections: "

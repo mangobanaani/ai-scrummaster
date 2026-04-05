@@ -35,10 +35,16 @@ def test_issue_task_includes_owasp_categories(_mock):
     llm = MagicMock()
     agent = build_devsecops_agent(llm, tools=[])
     task = build_devsecops_task(
-        agent=agent, event_type="issue", repo="owner/repo", entity_id=1,
-        title="SQL query builder", body="user inputs raw queries",
-        diff="", owasp_categories=["A03:2021-Injection"],
-        secret_findings=[], cve_findings=[],
+        agent=agent,
+        event_type="issue",
+        repo="owner/repo",
+        entity_id=1,
+        title="SQL query builder",
+        body="user inputs raw queries",
+        diff="",
+        owasp_categories=["A03:2021-Injection"],
+        secret_findings=[],
+        cve_findings=[],
     )
     assert "A03:2021-Injection" in task.description
 
@@ -47,12 +53,23 @@ def test_issue_task_includes_owasp_categories(_mock):
 def test_pr_task_includes_secret_findings(_mock):
     llm = MagicMock()
     agent = build_devsecops_agent(llm, tools=[])
-    secret = Finding(type=FindingType.secret, severity=Severity.critical,
-                     description="AWS key", recommendation="Rotate it")
+    secret = Finding(
+        type=FindingType.secret,
+        severity=Severity.critical,
+        description="AWS key",
+        recommendation="Rotate it",
+    )
     task = build_devsecops_task(
-        agent=agent, event_type="pr", repo="owner/repo", entity_id=5,
-        title="Add AWS integration", body="", diff="+AKIA...",
-        owasp_categories=[], secret_findings=[secret], cve_findings=[],
+        agent=agent,
+        event_type="pr",
+        repo="owner/repo",
+        entity_id=5,
+        title="Add AWS integration",
+        body="",
+        diff="+AKIA...",
+        owasp_categories=[],
+        secret_findings=[secret],
+        cve_findings=[],
     )
     assert "AWS key" in task.description
 
@@ -62,8 +79,15 @@ def test_push_task_description(_mock):
     llm = MagicMock()
     agent = build_devsecops_agent(llm, tools=[])
     task = build_devsecops_task(
-        agent=agent, event_type="push", repo="owner/repo", entity_id=0,
-        title="", body="", diff="", owasp_categories=[],
-        secret_findings=[], cve_findings=[],
+        agent=agent,
+        event_type="push",
+        repo="owner/repo",
+        entity_id=0,
+        title="",
+        body="",
+        diff="",
+        owasp_categories=[],
+        secret_findings=[],
+        cve_findings=[],
     )
     assert "push" in task.description.lower()
