@@ -1,5 +1,11 @@
 # AI Scrum Master
 
+[![CI](https://github.com/mangobanaani/ai-scrummaster/actions/workflows/ci.yml/badge.svg)](https://github.com/mangobanaani/ai-scrummaster/actions/workflows/ci.yml)
+[![Release](https://github.com/mangobanaani/ai-scrummaster/actions/workflows/release.yml/badge.svg)](https://github.com/mangobanaani/ai-scrummaster/actions/workflows/release.yml)
+[![GitHub release](https://img.shields.io/github/v/release/mangobanaani/ai-scrummaster)](https://github.com/mangobanaani/ai-scrummaster/releases)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 An AI-powered scrum master that automates GitHub project management — triaging issues, decomposing stories into tickets, detecting duplicates, running security checks on pull requests, and maintaining project hygiene.
 
 ## What it does
