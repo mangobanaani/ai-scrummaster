@@ -102,6 +102,15 @@ def _extract_json(output: str) -> str:
 
 
 def _make_llm() -> LLM:
+    provider = (settings.llm_provider or "").lower()
+    if provider == "openai" or settings.llm_base_url:
+        # OpenAI-compatible gateway (LiteLLM proxy, fabric vault-proxy, …).
+        # CrewAI routes model="openai/<name>" to the base_url with api_key.
+        return LLM(
+            model=f"openai/{settings.llm_model}",
+            base_url=settings.llm_base_url or None,
+            api_key=settings.llm_api_key or "sk-noop",
+        )
     return LLM(
         model=f"ollama/{settings.ollama_model}",
         base_url=settings.ollama_base_url,
